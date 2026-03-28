@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "Cerberus | Human-in-the-Loop Agent Governance",
-  description: "The 3-Headed Guardian for AI Agent Governance. Autonomous agents propose actions, but funds only move via x402 after World ID-verified human approval via XMTP messaging.",
-  keywords: ["World ID", "x402", "XMTP", "AI Agent", "Governance", "Base", "Ethereum"],
-  openGraph: {
-    title: "Cerberus — 3-Headed Guardian for AI Agents",
-    description: "Human-in-the-Loop Agent Governance with World ID, x402, and XMTP",
-    type: "website",
-  },
+  title: "Cerberus - AI-Powered DeFi Agent",
+  description: "Autonomous DeFi agent with World ID verification, XMTP messaging, and x402 payments",
 };
 
 export default function RootLayout({
@@ -20,8 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased bg-zinc-950 text-white min-h-screen">
-        <Providers>{children}</Providers>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

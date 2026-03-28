@@ -1,11 +1,24 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  images: {
-    unoptimized: true,
+  // Handle external packages that don't work with Next.js bundling
+  serverExternalPackages: [
+    'ioredis', 
+    '@coinbase/agentkit', 
+    '@coinbase/agentkit-langchain',
+    '@xmtp/user-preferences-bindings-wasm'
+  ],
+  // Ensure env vars are available
+  env: {
+    NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
   },
-  // XMTP V3 uses WebAssembly, requires special handling in Next.js 15+
-  serverExternalPackages: ["@xmtp/user-preferences-bindings-wasm"],
+  // Turbopack config to handle XMTP
+  turbopack: {
+    // Externalize XMTP on server side
+    resolveAlias: {
+      '@xmtp/xmtp-js': 'commonjs @xmtp/xmtp-js',
+    },
+  },
   // Note: API routes require server-side rendering
   // For Vercel deployment, connect GitHub repo to Vercel
 };
