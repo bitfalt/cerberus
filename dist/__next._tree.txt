@@ -1,2 +1,2 @@
-:HL["/_next/static/chunks/0yw8856g.v_.l.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}},"staleTime":300,"buildId":"NSFStMgaonqNU31sf-sLt"}
+:HL["/agentkit-hackathon-agentauth/_next/static/chunks/0j2icuwn69qix.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}},"staleTime":300,"buildId":"NczGxfzF1l-gstK34G843"}
