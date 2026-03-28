@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { type TradingOpportunity } from '@/lib/agentkit/agent';
+import { type TradingOpportunity } from '@/lib/agentkit/types';
 import { useX402 } from '@/hooks/useX402';
 
 interface OpportunityCardProps {

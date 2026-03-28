@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { type TradingOpportunity } from '@/lib/agentkit/agent';
+import { type TradingOpportunity } from '@/lib/agentkit/types';
 
 interface AgentLog {
   action: string;
@@ -32,31 +32,24 @@ export function useAgent(): UseAgentReturn {
   const [scanError, setScanError] = useState<string | null>(null);
   const [logs, setLogs] = useState<AgentLog[]>([]);
 
-  // Scan markets for opportunities
+  // Scan markets for opportunities via API route
   const scan = useCallback(async () => {
     setIsScanning(true);
     setScanError(null);
 
     try {
-      // Try to call API route first (works before Convex is set up)
+      // Call API route (server-side only, where AgentKit runs)
       const response = await fetch('/api/agent/scan', {
         method: 'POST',
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setOpportunities(data.opportunities || []);
-        setLogs(prev => [...prev, {
-          action: 'scan',
-          timestamp: Date.now(),
-        }]);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Scan failed: ${response.status}`);
       }
 
-      // Fallback: call the agent directly
-      const { scanWithAgentKit } = await import('@/lib/agentkit/agent');
-      const results = await scanWithAgentKit();
-      setOpportunities(results);
+      const data = await response.json();
+      setOpportunities(data.opportunities || []);
       setLogs(prev => [...prev, {
         action: 'scan',
         timestamp: Date.now(),
@@ -69,14 +62,26 @@ export function useAgent(): UseAgentReturn {
     }
   }, []);
 
-  // Analyze a specific opportunity
+  // Analyze a specific opportunity via API route
   const analyzeOpportunity = useCallback(async (id: string) => {
     try {
-      const { analyzeOpportunity: analyze } = await import('@/lib/agentkit/agent');
-      const result = await analyze(id);
+      const response = await fetch('/api/agent/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opportunityId: id }),
+      });
+
+      if (!response.ok) {
+        return {
+          approved: false,
+          reason: 'Analysis failed',
+        };
+      }
+
+      const result = await response.json();
       return {
-        approved: result.approved,
-        reason: result.reason,
+        approved: result.approved ?? false,
+        reason: result.reason || 'No reason provided',
       };
     } catch (error) {
       return {
@@ -86,7 +91,7 @@ export function useAgent(): UseAgentReturn {
     }
   }, []);
 
-  // Mock agent status
+  // Agent status from API
   const agentStatus: UseAgentReturn['agentStatus'] = {
     connected: true,
     lastScan: Date.now() - 60000,
