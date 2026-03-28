@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@coinbase/onchainkit": "^1.1.2",
+    "@coinbase/x402": "^2.1.0",
     "@rainbow-me/rainbowkit": "^2.2.10",
     "@tanstack/react-query": "^5.95.2",
     "@worldcoin/idkit": "^4.0.11",
