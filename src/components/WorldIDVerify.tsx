@@ -1,28 +1,10 @@
-// components/WorldIDVerify.tsx - World ID IDKit widget
+// components/WorldIDVerify.tsx - World ID IDKit v4 widget
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useWorldID } from '@/hooks/useWorldID';
 import { useAccount } from 'wagmi';
-
-// World ID proof type
-interface WorldIDProof {
-  merkle_root: string;
-  nullifier_hash: string;
-  proof: string;
-  verification_level: 'orb' | 'device';
-}
-
-// IDKit type
-interface IDKitResult {
-  merkle_root?: string;
-  merkleRoot?: string;
-  nullifier_hash?: string;
-  nullifierHash?: string;
-  proof?: string;
-  verification_level?: 'orb' | 'device';
-  verificationLevel?: 'orb' | 'device';
-}
+import { IDKitRequestWidget, deviceLegacy, type RpContext, type IDKitResult, type IDKitErrorCodes } from '@worldcoin/idkit';
 
 interface WorldIDVerifyProps {
   onVerified?: () => void;
@@ -33,24 +15,68 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
   const { address } = useAccount();
   const { verified, verifying, error, verify, checkVerification } = useWorldID();
   const [showWidget, setShowWidget] = useState(false);
+  const [rpContext, setRpContext] = useState<RpContext | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const handleSuccess = useCallback(async (result: IDKitResult) => {
-    // Convert IDKit result to WorldIDProof format
-    // Type assertion needed as IDKitResult can be V3 or V4 format
-    const resultAny = result as any;
-    const proof: WorldIDProof = {
-      merkle_root: resultAny.merkle_root || resultAny.merkleRoot || '',
-      nullifier_hash: resultAny.nullifier_hash || resultAny.nullifierHash || '',
-      proof: resultAny.proof || '',
-      verification_level: resultAny.verification_level || resultAny.verificationLevel || 'device',
-    };
-    await verify(proof);
-    setShowWidget(false);
-    onVerified?.();
+  // Fetch signed rp_context from backend
+  const fetchProofRequest = useCallback(async () => {
+    if (!address) return;
+    
+    setFetchError(null);
+    try {
+      const res = await fetch('/api/worldid/request-proof', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signal: address }),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch proof request');
+      }
+      
+      const data = await res.json();
+      setRpContext(data.rp_context as RpContext);
+      setShowWidget(true);
+    } catch (err) {
+      console.error('Failed to fetch proof request:', err);
+      setFetchError(err instanceof Error ? err.message : 'Failed to initialize verification');
+    }
+  }, [address]);
+
+  // Handle IDKit success
+  const handleIDKitSuccess = useCallback(async (result: IDKitResult) => {
+    // Handle IDKit v4 result format (uniqueness proof, not session)
+    if (result.protocol_version === '4.0' && 'responses' in result && !('session_id' in result)) {
+      const response = result.responses[0];
+      if (response && 'nullifier' in response) {
+        // V4 uniqueness format: proof is string[], nullifier is the unique identifier
+        const v4Response = response as { proof: string[]; nullifier: string };
+        const proof = {
+          // For V4, the Merkle root is the 5th element of the proof array (index 4)
+          merkle_root: v4Response.proof[4] || '',
+          nullifier_hash: v4Response.nullifier,
+          // V4 proof is string[], we join it for the API
+          proof: v4Response.proof.join(','),
+          verification_level: 'device' as const,
+        };
+        
+        await verify(proof);
+        setShowWidget(false);
+        setRpContext(null);
+        onVerified?.();
+      }
+    }
   }, [verify, onVerified]);
 
+  // Handle IDKit error
+  const handleIDKitError = useCallback((errorCode: IDKitErrorCodes) => {
+    console.error('IDKit error:', errorCode);
+    setFetchError(`Verification failed: ${errorCode}`);
+    setShowWidget(false);
+  }, []);
+
   // Show loading while checking initial state
-  // Note: verifying state from hook covers the checking period
   if (verifying && !showWidget) {
     return (
       <div className={`p-4 rounded-lg bg-gray-100 ${className}`}>
@@ -100,11 +126,12 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
 
         {!address ? (
           <p className="text-sm text-gray-500">Connect your wallet first</p>
-        ) : error ? (
+        ) : error || fetchError ? (
           <div className="space-y-2">
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-red-600">{error || fetchError}</p>
             <button
               onClick={() => {
+                setFetchError(null);
                 checkVerification();
               }}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -119,10 +146,7 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
           </div>
         ) : (
           <button
-            onClick={() => {
-              // Open World ID widget
-              setShowWidget(true);
-            }}
+            onClick={fetchProofRequest}
             className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-medium"
           >
             {'Verify with World ID'}
@@ -130,39 +154,19 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
         )}
       </div>
 
-      {/* World ID Modal - Simplified for build */}
-      {showWidget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">World ID Verification</h3>
-            <p className="text-gray-600 mb-4">
-              This would open the World ID widget. In production, this integrates with
-              the WorldCoin Developer Portal.
-            </p>
-            <div className="space-y-2">
-              <button
-                onClick={() => {
-                  // Mock success for development
-                  handleSuccess({
-                    nullifier_hash: `mock_${Date.now()}`,
-                    merkle_root: 'mock_root',
-                    proof: 'mock_proof',
-                    verification_level: 'device',
-                  });
-                }}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                Mock Verify (Dev)
-              </button>
-              <button
-                onClick={() => setShowWidget(false)}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* IDKit v4 Widget */}
+      {showWidget && rpContext && address && (
+        <IDKitRequestWidget
+          open={showWidget}
+          onOpenChange={setShowWidget}
+          app_id={(process.env.NEXT_PUBLIC_WORLDCOIN_APP_ID || 'app_placeholder') as `app_${string}`}
+          action="cerberus_trade_approval"
+          preset={deviceLegacy({ signal: address })}
+          rp_context={rpContext}
+          allow_legacy_proofs={false}
+          onSuccess={handleIDKitSuccess}
+          onError={handleIDKitError}
+        />
       )}
     </div>
   );
