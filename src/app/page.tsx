@@ -489,6 +489,10 @@ export default function Home() {
       
       const client = await Client.create(xmtpSigner as any, {
         env: (process.env.NEXT_PUBLIC_XMTP_ENV as "dev" | "production") || "dev",
+        // Disable legacy V2 contact publishing - XMTP network has shut down V2
+        publishLegacyContact: false,
+        // Skip contact publishing for short-lived client (we'll handle this separately)
+        skipContactPublishing: true,
       });
       
       setXmtpClient(client);
