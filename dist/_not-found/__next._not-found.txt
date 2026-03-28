@@ -1,0 +1,5 @@
+1:"$Sreact.fragment"
+2:I[339756,["/_next/static/chunks/0umu2cp01295v.js","/_next/static/chunks/0hwfrtoezu6~p.js","/_next/static/chunks/0hh288o6yvhyu.js","/_next/static/chunks/0ytu0u_maexyk.js","/_next/static/chunks/12lp94j-.c_mt.js","/_next/static/chunks/0m..oo_kg0hrw.js","/_next/static/chunks/06deo-vxdvlft.js","/_next/static/chunks/08p0feu6aj41u.js"],"default"]
+3:I[837457,["/_next/static/chunks/0umu2cp01295v.js","/_next/static/chunks/0hwfrtoezu6~p.js","/_next/static/chunks/0hh288o6yvhyu.js","/_next/static/chunks/0ytu0u_maexyk.js","/_next/static/chunks/12lp94j-.c_mt.js","/_next/static/chunks/0m..oo_kg0hrw.js","/_next/static/chunks/06deo-vxdvlft.js","/_next/static/chunks/08p0feu6aj41u.js"],"default"]
+4:[]
+0:{"rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"isPartial":false,"staleTime":300,"varyParams":"$W4","buildId":"NSFStMgaonqNU31sf-sLt"}

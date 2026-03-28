@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AgentAuth
+
+Human-in-the-Loop Agent Governance powered by World ID, Coinbase x402, and XMTP.
+
+## Overview
+
+AgentAuth enables autonomous AI agents to propose actions, but funds only move via x402 after a verified human approves via World ID. XMTP provides the encrypted negotiation layer between agents and their owners.
+
+## Key Features
+
+- **World ID Integration**: Biometric proof that the human controller (not a compromised key) is authorizing actions
+- **x402 Payments**: Conditional payment release — funds only move after verified approval
+- **XMTP Messaging**: Encrypted agent-owner communication channel
+- **Risk Scoring**: Agents evaluate and present risk scores for each opportunity
+- **Demo Flow**: Clear "approve vs reject" narrative showing protection from scams
+
+## Tech Stack
+
+- Next.js 15 + TypeScript
+- Tailwind CSS
+- wagmi + RainbowKit (wallet connection)
+- World ID (IDKit)
+- XMTP (messaging layer)
+- Base Sepolia (testnet)
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.local.example .env.local
+# Edit .env.local with your actual API keys
+
+# Run dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build for production
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Demo Script
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Connect wallet
+2. Verify with World ID (simulated in demo)
+3. Activate the agent
+4. Agent finds opportunities and messages via XMTP
+5. Approve a good trade (shows x402 payment flow)
+6. Reject a suspicious trade (shows protection from scam)
+7. View stats on losses prevented
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Hackathon
 
-## Learn More
+Built for AgentKit Hackathon 2025 hosted by World, Coinbase, and XMTP.
 
-To learn more about Next.js, take a look at the following resources:
+Qualifies for:
+- Main Prize ($15K pool): Uses World ID + x402
+- XMTP Bounty ($5K pool): Uses XMTP messaging
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
