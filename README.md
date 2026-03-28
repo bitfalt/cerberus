@@ -39,12 +39,13 @@ As AI agents become autonomous (trading, purchasing, scheduling), users face a d
 
 ## 🛠 Tech Stack
 
-- **Frontend:** Next.js 15 + TypeScript + Tailwind CSS
+- **Frontend:** Next.js 15 + TypeScript + Tailwind CSS + App Router
 - **Wallet:** wagmi + RainbowKit
 - **Chain:** Base Sepolia
-- **Identity:** World ID (IDKit)
-- **Payments:** wagmi sendTransaction (x402 pattern)
-- **Messaging:** XMTP interface
+- **Identity:** World ID v4 (IDKit with backend verification)
+- **Payments:** Coinbase x402 protocol (real signature verification)
+- **Messaging:** XMTP V3 with MLS encryption
+- **Architecture:** API routes for verification and payment processing
 
 ## 🎮 How to Demo
 
@@ -71,6 +72,42 @@ As AI agents become autonomous (trading, purchasing, scheduling), users face a d
 - ✅ XMTP encrypted messaging between agent and owner
 - ✅ x402 conditional payment flow
 - ✅ Real-time stats on losses prevented
+
+## ✅ Production Features
+
+### World ID v4 Backend Verification
+- Real backend verification via `/api/verify`
+- Uses World ID Developer API v2
+- Supports both v3 and v4 proof formats
+- Biometric nullifier validation
+- Server-side proof validation (not just client-side)
+
+### x402 Payment Protocol
+- **Two-step payment flow**: Create → Sign → Verify
+- EIP-712 signed payment messages via wallet
+- Backend payment verification using @coinbase/x402
+- In-memory payment store with 30-min expiry
+- Real signature validation before authorization
+
+### XMTP V3 with MLS
+- **MLS (Messaging Layer Security)** encryption
+- Real-time bidirectional message streaming
+- Conversation persistence via XMTP network
+- Inbox ID-based sender identification
+- Dynamic imports to avoid SSR WASM issues
+
+### Realistic Agent Scanner
+- Multi-factor risk calculation algorithm:
+  - Contract audit status (+30 points)
+  - Social sentiment score (0-30 points)
+  - Contract age maturity (+25 points)
+  - Liquidity depth (+20 points)
+  - Trading volume (+15 points)
+  - Address heuristics (+10 points)
+  - Type-based adjustments
+- 7-phase scanning progress visualization
+- Weighted opportunity selection (suspicious trades prioritized for demo)
+- Dynamic legitimacy classification (Verified/Caution/Unverified)
 
 ## 📦 Installation
 
@@ -109,19 +146,36 @@ npm run build
 ```
 src/
 ├── app/
-│   ├── layout.tsx      # Root layout with providers
-│   ├── page.tsx        # Main UI with all features
-│   ├── providers.tsx   # wagmi + RainbowKit config
-│   └── globals.css     # Tailwind styles
-public/                 # Static assets
+│   ├── layout.tsx          # Root layout with providers
+│   ├── page.tsx            # Main UI with all features
+│   ├── providers.tsx       # wagmi + RainbowKit config
+│   ├── globals.css         # Tailwind styles
+│   └── api/
+│       ├── verify/route.ts      # World ID verification endpoint
+│       └── x402/pay/route.ts    # x402 payment processing
+public/                     # Static assets
+docs/
+└── plans/                  # Implementation plans
 ```
 
 ## 🔐 Environment Variables
 
 ```env
+# World ID - App ID for verification (get from https://developer.worldcoin.org)
 NEXT_PUBLIC_WORLDCOIN_APP_ID=your_app_id
+WORLDCOIN_APP_ID=your_app_id
+
+# WalletConnect - Project ID for RainbowKit (get from https://cloud.walletconnect.com)
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+
+# XMTP - Environment (dev for testing, production for mainnet)
+NEXT_PUBLIC_XMTP_ENV=dev
 ```
+
+**Required Setup:**
+1. Get World ID App ID from [World ID Developer Portal](https://developer.worldcoin.org)
+2. Get WalletConnect Project ID from [WalletConnect Cloud](https://cloud.walletconnect.com)
+3. Copy `.env.local.example` to `.env.local` and fill in values
 
 ## 📝 License
 
