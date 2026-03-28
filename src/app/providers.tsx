@@ -5,7 +5,7 @@ import { ReactNode } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RainbowKitProvider, getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { base } from 'wagmi/chains';
+import { base, baseSepolia } from 'wagmi/chains';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 
 // Wagmi + RainbowKit config
@@ -17,7 +17,7 @@ if (!walletConnectProjectId || walletConnectProjectId === 'demo_project_id') {
 const config = getDefaultConfig({
   appName: 'Cerberus Agent',
   projectId: walletConnectProjectId || 'demo_project_id',
-  chains: [base],
+  chains: [base, baseSepolia],
   ssr: true,
 });
 
