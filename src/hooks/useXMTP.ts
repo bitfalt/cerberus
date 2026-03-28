@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWalletClient } from 'wagmi';
+import type { Client as XMTPClient } from '@xmtp/browser-sdk';
 import { 
   initializeXMTP, 
   disconnectXMTP, 
@@ -16,7 +17,7 @@ import {
 import { clearCache } from '@/lib/xmtp/cache';
 
 interface UseXMTPReturn {
-  client: any | null;
+  client: XMTPClient | null;
   isInitializing: boolean;
   isConnected: boolean;
   error: string | null;
@@ -32,7 +33,7 @@ interface UseXMTPReturn {
 
 export function useXMTP(): UseXMTPReturn {
   const { data: walletClient } = useWalletClient();
-  const [client, setClient] = useState<any | null>(null);
+  const [client, setClient] = useState<XMTPClient | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
