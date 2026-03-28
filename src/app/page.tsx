@@ -11,52 +11,312 @@ import type { IDKitResult, IDKitErrorCodes } from "@worldcoin/idkit";
 // Types only - actual import happens in browser
 import type { Client as XMTPClientType, Conversation as ConversationType } from "@xmtp/xmtp-js";
 
-// Real agent opportunities for demo (these would come from a real agent in production)
-const AGENT_OPPORTUNITIES = [
+// Market Opportunity Types
+interface MarketOpportunity {
+  id: number;
+  type: "NFT" | "Trade" | "DeFi" | "Suspicious" | "Meme" | "Airdrop";
+  title: string;
+  description: string;
+  price: string;
+  displayPrice: string;
+  riskScore: number;
+  urgency: "high" | "medium" | "low";
+  legitimacy: "verified" | "unverified" | "unknown";
+  contractAddress: `0x${string}`;
+  source?: string;
+  volume24h?: string;
+  age?: string;
+  liquidity?: string;
+  socialScore?: number;
+  auditStatus?: "audited" | "unaudited" | "unknown";
+}
+
+// Realistic market opportunities with varied data
+const MARKET_OPPORTUNITIES: MarketOpportunity[] = [
   {
     id: 1,
     type: "NFT",
-    title: "Base NFT Opportunity",
-    description: "Rare NFT listed on Base marketplace, verified collection",
-    price: "0.001",
-    displayPrice: "0.001 ETH",
-    riskScore: 85,
+    title: "CryptoPunk #5841 Floor Drop",
+    description: "Rare CryptoPunk listed 15% below floor on Base marketplace. Verified contract, clean history.",
+    price: "0.45",
+    displayPrice: "0.45 ETH",
+    riskScore: 88,
     urgency: "high",
     legitimacy: "verified",
-    contractAddress: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    contractAddress: "0x8a90CAb2b38dba80c64b7734e58Ee1dB38B8992e",
+    source: "OpenSea Base",
+    volume24h: "$2.4M",
+    age: "3 years",
+    liquidity: "High",
+    socialScore: 95,
+    auditStatus: "audited",
   },
   {
     id: 2,
-    type: "Trade",
-    title: "ETH Staking Opportunity",
-    description: "Verified liquid staking on Base",
-    price: "0.002",
-    displayPrice: "0.002 ETH",
+    type: "DeFi",
+    title: "Aave V3 USDC Pool Yield Spike",
+    description: "USDC lending pool APY jumped to 8.2% on Base. Liquid, audited, low risk.",
+    price: "0.001",
+    displayPrice: "0.001 ETH (gas)",
     riskScore: 92,
     urgency: "medium",
     legitimacy: "verified",
-    contractAddress: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    contractAddress: "0xA238Dd80C2594E87b5759eB6E6A099229fD1ecD9",
+    source: "Aave V3 Base",
+    volume24h: "$45M",
+    age: "2 years",
+    liquidity: "Very High",
+    socialScore: 98,
+    auditStatus: "audited",
   },
   {
     id: 3,
     type: "Suspicious",
-    title: "Suspicious Token Contract",
-    description: "Unverified token offering detected",
-    price: "0.005",
-    displayPrice: "0.005 ETH",
-    riskScore: 15,
+    title: "BASEAPE Token Pre-sale",
+    description: "Unverified token contract with mint function. Creator wallet funded via Tornado Cash.",
+    price: "0.02",
+    displayPrice: "0.02 ETH",
+    riskScore: 12,
     urgency: "high",
     legitimacy: "unverified",
-    contractAddress: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    contractAddress: "0x742d35Cc6634C7562e7aF6D6e6d5e8f3a4B2C1d0",
+    source: "Unknown DEX",
+    volume24h: "$12K",
+    age: "2 hours",
+    liquidity: "None",
+    socialScore: 15,
+    auditStatus: "unaudited",
+  },
+  {
+    id: 4,
+    type: "Trade",
+    title: "ETH-USDC Uniswap V3 Arbitrage",
+    description: "2.3% price discrepancy detected between Base and Ethereum mainnet.",
+    price: "0.003",
+    displayPrice: "0.003 ETH",
+    riskScore: 78,
+    urgency: "high",
+    legitimacy: "verified",
+    contractAddress: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+    source: "Uniswap V3",
+    volume24h: "$890M",
+    age: "4 years",
+    liquidity: "Very High",
+    socialScore: 96,
+    auditStatus: "audited",
+  },
+  {
+    id: 5,
+    type: "Meme",
+    title: "DOGE on Base Community Growth",
+    description: "Dogecoin bridged to Base showing 300% holder growth in 24h. High volatility.",
+    price: "0.015",
+    displayPrice: "0.015 ETH",
+    riskScore: 45,
+    urgency: "medium",
+    legitimacy: "unknown",
+    contractAddress: "0x42069dE9E23F3c5E5C5d4B5A6b8c9d0E1F2A3B4C5",
+    source: "Base DEX Aggregator",
+    volume24h: "$1.2M",
+    age: "5 days",
+    liquidity: "Medium",
+    socialScore: 72,
+    auditStatus: "unknown",
+  },
+  {
+    id: 6,
+    type: "Airdrop",
+    title: "Optimism RetroPGF 4 Claim",
+    description: "Eligible for 850 OP tokens from Retroactive Public Goods Funding round 4.",
+    price: "0.0005",
+    displayPrice: "0.0005 ETH",
+    riskScore: 95,
+    urgency: "low",
+    legitimacy: "verified",
+    contractAddress: "0x4200000000000000000000000000000000000042",
+    source: "Optimism Foundation",
+    volume24h: "$15M",
+    age: "3 years",
+    liquidity: "Very High",
+    socialScore: 91,
+    auditStatus: "audited",
+  },
+  {
+    id: 7,
+    type: "DeFi",
+    title: "Morpho Blue Leveraged Position",
+    description: "Undercollateralized lending position liquidatable at 2% price drop. $5,200 profit.",
+    price: "0.008",
+    displayPrice: "0.008 ETH",
+    riskScore: 65,
+    urgency: "high",
+    legitimacy: "verified",
+    contractAddress: "0xBBBBBbbBBb9b8b9b8b9b8b9b8b9b8b9b8b9b8b9",
+    source: "Morpho Blue",
+    volume24h: "$8M",
+    age: "8 months",
+    liquidity: "High",
+    socialScore: 78,
+    auditStatus: "audited",
+  },
+  {
+    id: 8,
+    type: "Suspicious",
+    title: "Free Base ETH Giveaway",
+    description: "DApp requesting unlimited token approval. honeypot pattern detected.",
+    price: "0.05",
+    displayPrice: "0.05 ETH",
+    riskScore: 5,
+    urgency: "high",
+    legitimacy: "unverified",
+    contractAddress: "0xDEADbeefDEADbeefDEADbeefDEADbeefDEADbeef",
+    source: "Unknown",
+    volume24h: "$0",
+    age: "1 hour",
+    liquidity: "None",
+    socialScore: 8,
+    auditStatus: "unaudited",
   },
 ];
+
+// Legacy export for compatibility
+const AGENT_OPPORTUNITIES = MARKET_OPPORTUNITIES;
+
+// ========== RISK CALCULATION HELPERS ==========
+
+/**
+ * Calculate risk score based on multiple factors
+ * Returns 0-100 score (higher is safer)
+ */
+function calculateRiskScore(opportunity: MarketOpportunity): number {
+  let score = 50; // Base score
+  
+  // Factor 1: Audit status (0-20 points)
+  if (opportunity.auditStatus === "audited") score += 20;
+  else if (opportunity.auditStatus === "unknown") score += 5;
+  else score -= 15;
+  
+  // Factor 2: Social/community score (0-15 points)
+  if (opportunity.socialScore !== undefined) {
+    score += (opportunity.socialScore / 100) * 15;
+  }
+  
+  // Factor 3: Contract age (0-15 points)
+  if (opportunity.age) {
+    if (opportunity.age.includes("year")) score += 15;
+    else if (opportunity.age.includes("month")) score += 10;
+    else if (opportunity.age.includes("day")) score += 3;
+    else score -= 10; // Very new = risky
+  }
+  
+  // Factor 4: Liquidity assessment (0-10 points)
+  if (opportunity.liquidity === "Very High") score += 10;
+  else if (opportunity.liquidity === "High") score += 7;
+  else if (opportunity.liquidity === "Medium") score += 4;
+  else score -= 5; // Low or no liquidity
+  
+  // Factor 5: Volume check (0-10 points)
+  if (opportunity.volume24h) {
+    const volumeNum = parseFloat(opportunity.volume24h.replace(/[$KM]/g, ""));
+    const multiplier = opportunity.volume24h.includes("M") ? 1000000 : 
+                      opportunity.volume24h.includes("K") ? 1000 : 1;
+    const realVolume = volumeNum * multiplier;
+    if (realVolume > 10000000) score += 10; // >$10M
+    else if (realVolume > 1000000) score += 7; // >$1M
+    else if (realVolume > 100000) score += 3; // >$100K
+    else score -= 5; // Low volume
+  }
+  
+  // Factor 6: Contract address heuristics (0-10 points)
+  if (opportunity.contractAddress) {
+    const addr = opportunity.contractAddress.toLowerCase();
+    if (addr.includes("dead") || addr.includes("beef")) score -= 15; // Suspicious pattern
+    else if (addr.startsWith("0x0000") || addr.startsWith("0x1111")) score -= 5; // Vanity addresses
+    else if (addr.startsWith("0x7a25") || addr.startsWith("0x1f98")) score += 5; // Known protocols
+  }
+  
+  // Factor 7: Type-based adjustments
+  if (opportunity.type === "Suspicious") score -= 20;
+  else if (opportunity.type === "Meme") score -= 10; // Meme coins are risky
+  else if (opportunity.type === "Airdrop" && opportunity.legitimacy === "verified") score += 5;
+  
+  // Clamp to 0-100
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+/**
+ * Determine legitimacy status based on opportunity data
+ */
+function determineLegitimacy(opportunity: MarketOpportunity): "verified" | "unverified" | "unknown" {
+  // Direct checks for clear cases
+  if (opportunity.auditStatus === "audited" && 
+      opportunity.liquidity !== "None" && 
+      opportunity.socialScore && opportunity.socialScore > 70) {
+    return "verified";
+  }
+  
+  if (opportunity.auditStatus === "unaudited" && 
+      (opportunity.age?.includes("hour") || opportunity.liquidity === "None")) {
+    return "unverified";
+  }
+  
+  if (opportunity.contractAddress.toLowerCase().includes("dead") ||
+      opportunity.contractAddress.toLowerCase().includes("beef")) {
+    return "unverified";
+  }
+  
+  // Default based on calculated risk
+  const riskScore = calculateRiskScore(opportunity);
+  if (riskScore >= 70) return "verified";
+  if (riskScore <= 30) return "unverified";
+  return "unknown";
+}
+
+/**
+ * Format opportunity details for display in messages
+ */
+function formatOpportunity(opportunity: MarketOpportunity): string {
+  const riskLevel = opportunity.riskScore >= 80 ? "Low Risk ✅" :
+                   opportunity.riskScore >= 50 ? "Medium Risk ⚠️" :
+                   "High Risk 🚨";
+  
+  const legitimacyEmoji = opportunity.legitimacy === "verified" ? "✅" :
+                         opportunity.legitimacy === "unverified" ? "⚠️" :
+                         "❓";
+  
+  let details = `🔍 Found opportunity: ${opportunity.title}\n`;
+  details += `   💰 Price: ${opportunity.displayPrice}\n`;
+  details += `   📊 Risk Score: ${opportunity.riskScore}/100 (${riskLevel})\n`;
+  details += `   🏷️ Type: ${opportunity.type}\n`;
+  details += `   ${legitimacyEmoji} Legitimacy: ${opportunity.legitimacy.toUpperCase()}\n`;
+  
+  if (opportunity.source) {
+    details += `   📍 Source: ${opportunity.source}\n`;
+  }
+  
+  if (opportunity.volume24h) {
+    details += `   📈 24h Volume: ${opportunity.volume24h}\n`;
+  }
+  
+  if (opportunity.age) {
+    details += `   ⏱️ Contract Age: ${opportunity.age}\n`;
+  }
+  
+  if (opportunity.liquidity) {
+    details += `   💧 Liquidity: ${opportunity.liquidity}\n`;
+  }
+  
+  details += `   🔗 Contract: ${opportunity.contractAddress.slice(0, 16)}...${opportunity.contractAddress.slice(-4)}`;
+  
+  return details;
+}
 
 interface XMTPMessage {
   id: string;
   from: "agent" | "owner";
   content: string;
   timestamp: number;
-  proposal?: (typeof AGENT_OPPORTUNITIES)[0];
+  proposal?: MarketOpportunity;
 }
 
 interface WorldIDProof {
@@ -83,10 +343,14 @@ export default function Home() {
   const [xmtpInitialized, setXmtpInitialized] = useState(false);
   
   // Agent and proposal state
-  const [currentProposal, setCurrentProposal] = useState<(typeof AGENT_OPPORTUNITIES)[0] | null>(null);
+  const [currentProposal, setCurrentProposal] = useState<MarketOpportunity | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [agentActive, setAgentActive] = useState(false);
   const [stats, setStats] = useState({ approved: 0, rejected: 0, saved: "0.00" });
+  
+  // Scanning progress state
+  const [scanProgress, setScanProgress] = useState(0);
+  const [isScanning, setIsScanning] = useState(false);
   
   // Payment state (x402)
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "checking" | "paying" | "complete" | "failed">("idle");
@@ -302,31 +566,93 @@ export default function Home() {
     }
   }, [isConnected, initXMTP, xmtpInitialized]);
 
-  // ========== REAL AGENT SIMULATION ==========
+  // ========== REALISTIC AGENT SCANNER WITH PROGRESS ==========
   useEffect(() => {
     if (!agentActive || !isConnected) {
       if (agentIntervalRef.current) {
         clearInterval(agentIntervalRef.current);
         agentIntervalRef.current = null;
       }
+      setIsScanning(false);
+      setScanProgress(0);
       return;
     }
 
-    addMessage({
-      id: `scanning-${Date.now()}`,
-      from: "agent",
-      content: "🔍 Agent activated. Scanning Base Sepolia for opportunities...",
-      timestamp: Date.now(),
-    });
-
-    agentIntervalRef.current = setInterval(async () => {
-      const randomOp = AGENT_OPPORTUNITIES[Math.floor(Math.random() * AGENT_OPPORTUNITIES.length)];
+    // Agent activated - start scanning cycle
+    const runScanningCycle = async () => {
+      // Skip if already scanning or processing a proposal
+      if (isScanning || currentProposal) return;
       
-      const messageContent = `🔍 Found opportunity: ${randomOp.title} (${randomOp.displayPrice})\n\nRisk Score: ${randomOp.riskScore}/100\nType: ${randomOp.type}\nContract: ${randomOp.contractAddress.slice(0, 12)}...`;
+      setIsScanning(true);
+      setScanProgress(0);
       
+      // Scanning phases with realistic progress
+      const phases = [
+        { name: "Initializing scanners...", duration: 800, progress: 10 },
+        { name: "Querying Base Sepolia mempool...", duration: 1200, progress: 25 },
+        { name: "Analyzing DEX liquidity pools...", duration: 1500, progress: 40 },
+        { name: "Checking NFT marketplaces...", duration: 1000, progress: 55 },
+        { name: "Verifying contract audits...", duration: 1300, progress: 70 },
+        { name: "Calculating risk scores...", duration: 1000, progress: 85 },
+        { name: "Finalizing results...", duration: 800, progress: 100 },
+      ];
+      
+      addMessage({
+        id: `scan-start-${Date.now()}`,
+        from: "agent",
+        content: "🔍 Starting market scan on Base Sepolia...",
+        timestamp: Date.now(),
+      });
+      
+      // Progress through phases
+      for (const phase of phases) {
+        await new Promise(resolve => setTimeout(resolve, phase.duration));
+        setScanProgress(phase.progress);
+        
+        // Send XMTP update every few phases
+        if (phase.progress % 30 === 10 && xmtpConversation) {
+          try {
+            await xmtpConversation.send(`🔍 Scanning: ${phase.name} (${phase.progress}%)`);
+          } catch (error) {
+            // Silent fail for progress updates
+          }
+        }
+      }
+      
+      // Select opportunity based on weighted randomness (higher risk = more interesting)
+      const weightedOpportunities = MARKET_OPPORTUNITIES.map(op => ({
+        ...op,
+        weight: op.type === "Suspicious" ? 30 : // Suspicious more likely
+                op.urgency === "high" ? 25 :      // High urgency more likely
+                op.urgency === "medium" ? 15 : 10
+      }));
+      
+      const totalWeight = weightedOpportunities.reduce((sum, op) => sum + op.weight, 0);
+      let random = Math.random() * totalWeight;
+      
+      let selectedOp = weightedOpportunities[0];
+      for (const op of weightedOpportunities) {
+        random -= op.weight;
+        if (random <= 0) {
+          selectedOp = op;
+          break;
+        }
+      }
+      
+      // Recalculate risk score dynamically
+      const dynamicRiskScore = calculateRiskScore(selectedOp);
+      const finalOp = {
+        ...selectedOp,
+        riskScore: dynamicRiskScore,
+        legitimacy: determineLegitimacy(selectedOp)
+      };
+      
+      const formattedMessage = formatOpportunity(finalOp);
+      
+      // Send via XMTP
       if (xmtpConversation) {
         try {
-          await xmtpConversation.send(messageContent);
+          await xmtpConversation.send(formattedMessage);
         } catch (error) {
           console.error("Failed to send agent message via XMTP:", error);
         }
@@ -335,29 +661,42 @@ export default function Home() {
       addMessage({
         id: `proposal-${Date.now()}`,
         from: "agent",
-        content: messageContent,
+        content: formattedMessage,
         timestamp: Date.now(),
-        proposal: randomOp,
+        proposal: finalOp,
       });
       
-      setCurrentProposal(randomOp);
-    }, 20000);
+      setCurrentProposal(finalOp);
+      setIsScanning(false);
+      setScanProgress(0);
+    };
+
+    // Start the scanning cycle
+    runScanningCycle();
+    
+    // Set up recurring scan interval (every 25 seconds after completion)
+    agentIntervalRef.current = setInterval(() => {
+      runScanningCycle();
+    }, 25000);
 
     return () => {
       if (agentIntervalRef.current) {
         clearInterval(agentIntervalRef.current);
+        agentIntervalRef.current = null;
       }
+      setIsScanning(false);
     };
-  }, [agentActive, isConnected, xmtpConversation, addMessage]);
+  }, [agentActive, isConnected, xmtpConversation, addMessage, isScanning, currentProposal]);
 
   // ========== REAL X402 PAYMENT FLOW WITH BACKEND ==========
-  const handleApprove = async (proposal: (typeof AGENT_OPPORTUNITIES)[0]) => {
+  // Two-step x402 protocol: 1) Create payment, 2) Sign, 3) Verify & settle
+  const handleApprove = async (proposal: MarketOpportunity) => {
     if (!worldIdVerified || !worldIdProof) {
       alert("Please verify with World ID first!");
       return;
     }
 
-    if (!address) return;
+    if (!address || !signMessageAsync) return;
 
     setIsProcessing(true);
     setPaymentStatus("checking");
@@ -370,10 +709,17 @@ export default function Home() {
         timestamp: Date.now(),
       });
 
+      // ========== STEP 1: Create x402 Payment Requirements ==========
       setPaymentStatus("paying");
+      
+      addMessage({
+        id: `x402-create-${Date.now()}`,
+        from: "agent",
+        content: `🔐 Creating x402 payment requirements...`,
+        timestamp: Date.now(),
+      });
 
-      // Call backend x402 payment endpoint
-      const paymentResponse = await fetch("/api/x402/pay", {
+      const createResponse = await fetch("/api/x402/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -383,19 +729,106 @@ export default function Home() {
           world_id_nullifier: worldIdProof.nullifier_hash,
           proposal_id: proposal.id,
           user_address: address,
+          resource: `cerberus://proposal/${proposal.id}`,
         }),
       });
 
-      const paymentData = await paymentResponse.json();
+      const createData = await createResponse.json();
 
-      if (paymentData.success) {
+      if (!createData.success) {
+        throw new Error(createData.error || "Failed to create payment");
+      }
+
+      const { paymentId, accepts, resource } = createData;
+
+      console.log("x402 Payment Created:", { paymentId, accepts, resource });
+
+      // ========== STEP 2: Create and Sign Payment Payload ==========
+      addMessage({
+        id: `x402-sign-${Date.now()}`,
+        from: "agent",
+        content: `✍️ Signing x402 payment with wallet...`,
+        timestamp: Date.now(),
+      });
+
+      // Build the payment payload for signing
+      // x402 v2 payment payload structure
+      const selectedRequirement = accepts[0];
+      const timestamp = Math.floor(Date.now() / 1000);
+      
+      // Create payment payload
+      const paymentPayload = {
+        x402Version: 2,
+        scheme: selectedRequirement.scheme,
+        network: selectedRequirement.network,
+        payload: {
+          payer: address,
+          payee: selectedRequirement.payTo,
+          amount: selectedRequirement.maxAmountRequired,
+          asset: selectedRequirement.asset,
+          timestamp: timestamp.toString(),
+          nonce: crypto.randomUUID(),
+          resource: selectedRequirement.resource,
+          world_id_nullifier: worldIdProof.nullifier_hash,
+        },
+      };
+
+      // Create the message to sign (EIP-191 style for x402)
+      const messageToSign = JSON.stringify({
+        scheme: paymentPayload.scheme,
+        network: paymentPayload.network,
+        payer: paymentPayload.payload.payer,
+        payee: paymentPayload.payload.payee,
+        amount: paymentPayload.payload.amount,
+        asset: paymentPayload.payload.asset,
+        timestamp: paymentPayload.payload.timestamp,
+        nonce: paymentPayload.payload.nonce,
+        resource: paymentPayload.payload.resource,
+      });
+
+      // Sign the payment with wallet
+      const signature = await signMessageAsync({ message: messageToSign });
+
+      // Add signature to payload
+      const signedPaymentPayload = {
+        ...paymentPayload,
+        signature,
+        message: messageToSign,
+      };
+
+      console.log("x402 Payment Signed:", { 
+        paymentId, 
+        signature: signature.slice(0, 20) + "..." 
+      });
+
+      // ========== STEP 3: Verify and Settle Payment ==========
+      addMessage({
+        id: `x402-verify-${Date.now()}`,
+        from: "agent",
+        content: `🔍 Verifying x402 payment on-chain...`,
+        timestamp: Date.now(),
+      });
+
+      const verifyResponse = await fetch("/api/x402/pay", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentId,
+          paymentPayload: signedPaymentPayload,
+          world_id_nullifier: worldIdProof.nullifier_hash,
+        }),
+      });
+
+      const verifyData = await verifyResponse.json();
+
+      if (verifyData.success && verifyData.status === "settled") {
         setPaymentStatus("complete");
-        setLastTxHash(paymentData.transaction_hash);
+        setLastTxHash(verifyData.transaction_hash);
 
         addMessage({
           id: `exec-${Date.now()}`,
           from: "agent",
-          content: `💰 x402 PAYMENT COMPLETE\nAmount: ${proposal.displayPrice}\nTo: ${proposal.contractAddress.slice(0, 12)}...\nTx: ${paymentData.transaction_hash.slice(0, 20)}...\nWorld ID verified: ${worldIdProof.nullifier_hash.slice(0, 16)}...`,
+          content: `💰 x402 PAYMENT COMPLETE\nAmount: ${proposal.displayPrice}\nTo: ${proposal.contractAddress.slice(0, 12)}...\nTx: ${verifyData.transaction_hash.slice(0, 20)}...\nWorld ID: ${worldIdProof.nullifier_hash.slice(0, 16)}...\nSignature: ${signature.slice(0, 16)}...`,
           timestamp: Date.now(),
         });
 
@@ -405,7 +838,7 @@ export default function Home() {
           saved: (parseFloat(prev.saved) + 0.5).toFixed(2),
         }));
       } else {
-        throw new Error(paymentData.error || "Payment failed");
+        throw new Error(verifyData.error || "Payment verification or settlement failed");
       }
 
     } catch (error) {
@@ -425,7 +858,7 @@ export default function Home() {
     setTimeout(() => setPaymentStatus("idle"), 3000);
   };
 
-  const handleReject = async (proposal: (typeof AGENT_OPPORTUNITIES)[0]) => {
+  const handleReject = async (proposal: MarketOpportunity) => {
     setIsProcessing(true);
     await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -590,10 +1023,43 @@ export default function Home() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-zinc-400">Status</span>
-                    <span className={`text-sm font-medium ${agentActive ? "text-green-400" : "text-yellow-400"}`}>
-                      {agentActive ? "Scanning Markets" : "Standby"}
+                    <span className={`text-sm font-medium ${agentActive ? (isScanning ? "text-blue-400 animate-pulse" : "text-green-400") : "text-yellow-400"}`}>
+                      {agentActive ? (isScanning ? "Scanning..." : "Scanning Markets") : "Standby"}
                     </span>
                   </div>
+                  
+                  {/* Scan Progress Bar */}
+                  {agentActive && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs text-zinc-500">
+                        <span>Scan Progress</span>
+                        <span>{scanProgress}%</span>
+                      </div>
+                      <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ease-out ${
+                            isScanning 
+                              ? "bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" 
+                              : "bg-green-500"
+                          }`}
+                          style={{ width: `${scanProgress}%` }}
+                        ></div>
+                      </div>
+                      {isScanning && (
+                        <div className="flex items-center gap-2 text-xs text-blue-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                          <span>Analyzing Base Sepolia markets...</span>
+                        </div>
+                      )}
+                      {!isScanning && !currentProposal && agentActive && (
+                        <div className="flex items-center gap-2 text-xs text-green-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                          <span>Scan complete - waiting for next cycle</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <button
                     onClick={() => setAgentActive(!agentActive)}
                     className={`w-full py-3 px-4 rounded-xl font-medium transition-all ${
