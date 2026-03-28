@@ -41,28 +41,17 @@ export default function Home() {
     const isHighValue = opportunity.amount > 1000;
     
     // Mark as XMTP-approved in x402
+    // For high-value trades, XMTP approval alone isn't enough - World ID per-transaction is also required
+    // This is handled in XMTPChat component via the handlePayAndExecute flow
     markXMTPApproved(opportunity.id, isHighValue ? worldIDVerified : true);
     
-    // If high value and World ID not verified, alert user
-    if (isHighValue && !worldIDVerified) {
-      alert('This trade requires World ID verification (>$1000). Please verify first.');
-      return;
-    }
-    
-    // Create x402 payment for approved trade
-    await createForXMTPApproved(
-      {
-        amount: '1000000000000000', // 0.001 ETH fee
-        tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-        description: `Execute ${opportunity.type} on ${opportunity.protocol}`,
-      },
-      opportunity.id,
-      worldIDVerified
-    );
+    // Note: For high-value trades, World ID per-transaction verification happens in XMTPChat
+    // when the user clicks "Pay & Execute", not at approval time.
+    // This ensures: XMTP Approval → World ID (if high-value) → x402 → Execute
     
     // Add to execution queue
     setExecutionQueue(prev => [...prev, opportunity.id]);
-  }, [markXMTPApproved, worldIDVerified, createForXMTPApproved]);
+  }, [markXMTPApproved, worldIDVerified]);
 
   // Handle XMTP rejection
   const handleReject = useCallback((opportunityId: string, reason: string) => {
@@ -222,11 +211,14 @@ export default function Home() {
                     <span className="font-medium text-green-600">{executionQueue.length}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">World ID Verified:</span>
-                    <span className={`font-medium ${worldIDVerified ? 'text-green-600' : 'text-gray-400'}`}>
-                      {worldIDVerified ? '✓ Yes' : '✗ No'}
+                    <span className="text-gray-600">World ID Status:</span>
+                    <span className={`font-medium ${worldIDVerified ? 'text-green-600' : 'text-amber-600'}`}>
+                      {worldIDVerified ? '✓ Gate Verified' : '⚠ Per-Trade Mode'}
                     </span>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    High-value trades (&gt;$1000) require biometric verification per transaction.
+                  </p>
                   {activePayment && (
                     <div className="mt-3 p-2 bg-indigo-50 rounded border border-indigo-200">
                       <p className="text-xs text-indigo-700">Active x402 Payment:</p>
@@ -388,8 +380,11 @@ export default function Home() {
                       <p className="text-sm text-gray-600 mt-1">Enabled - Agent sends proposals via XMTP</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="font-medium text-gray-900">World ID Gate</p>
-                      <p className="text-sm text-gray-600 mt-1">Required for trades &gt; $1000</p>
+                      <p className="font-medium text-gray-900">World ID Security</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Per-transaction biometric verification for trades &gt; $1,000.
+                        Even with stolen keys, attackers can't trade without your iris scan.
+                      </p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <p className="font-medium text-gray-900">Network</p>

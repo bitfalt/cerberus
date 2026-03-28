@@ -1,4 +1,4 @@
-// components/WorldIDVerify.tsx - World ID IDKit v4 widget
+// components/WorldIDVerify.tsx - World ID IDKit v4 widget with per-transaction support
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -7,16 +7,41 @@ import { useAccount } from 'wagmi';
 import { IDKitRequestWidget, deviceLegacy, type RpContext, type IDKitResult, type IDKitErrorCodes } from '@worldcoin/idkit';
 
 interface WorldIDVerifyProps {
-  onVerified?: () => void;
+  onVerified?: (nullifierHash: string) => void;
+  onError?: (error: string) => void;
+  mode?: 'gate' | 'transaction';
+  tradeAmount?: number;
+  tradeId?: string;
   className?: string;
 }
 
-export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps) {
+export function WorldIDVerify({ 
+  onVerified, 
+  onError,
+  mode = 'gate',
+  tradeAmount,
+  tradeId,
+  className = '' 
+}: WorldIDVerifyProps) {
   const { address } = useAccount();
-  const { verified, verifying, error, verify, checkVerification } = useWorldID();
+  const { 
+    verified, 
+    verifying, 
+    error, 
+    verify, 
+    verifyForTransaction,
+    isTransactionVerified,
+    checkVerification 
+  } = useWorldID();
   const [showWidget, setShowWidget] = useState(false);
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Check if this specific trade is already verified (for transaction mode)
+  const isCurrentTradeVerified = tradeId ? isTransactionVerified(tradeId) : false;
+  const showAsVerified = mode === 'transaction' && tradeId 
+    ? isCurrentTradeVerified 
+    : verified;
 
   // Fetch signed rp_context from backend
   const fetchProofRequest = useCallback(async () => {
@@ -27,7 +52,11 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
       const res = await fetch('/api/worldid/request-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signal: address }),
+        body: JSON.stringify({ 
+          signal: address,
+          tradeId, // Include tradeId for per-transaction verification
+          mode,
+        }),
       });
       
       if (!res.ok) {
@@ -42,7 +71,7 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
       console.error('Failed to fetch proof request:', err);
       setFetchError(err instanceof Error ? err.message : 'Failed to initialize verification');
     }
-  }, [address]);
+  }, [address, tradeId, mode]);
 
   // Handle IDKit success
   const handleIDKitSuccess = useCallback(async (result: IDKitResult) => {
@@ -61,20 +90,28 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
           verification_level: 'device' as const,
         };
         
-        await verify(proof);
+        // Use per-transaction verification if in transaction mode with tradeId
+        if (mode === 'transaction' && tradeId) {
+          await verifyForTransaction(tradeId, proof);
+        } else {
+          await verify(proof);
+        }
+        
         setShowWidget(false);
         setRpContext(null);
-        onVerified?.();
+        onVerified?.(proof.nullifier_hash);
       }
     }
-  }, [verify, onVerified]);
+  }, [verify, verifyForTransaction, onVerified, mode, tradeId]);
 
   // Handle IDKit error
   const handleIDKitError = useCallback((errorCode: IDKitErrorCodes) => {
     console.error('IDKit error:', errorCode);
-    setFetchError(`Verification failed: ${errorCode}`);
+    const errorMessage = `Verification failed: ${errorCode}`;
+    setFetchError(errorMessage);
     setShowWidget(false);
-  }, []);
+    onError?.(errorMessage);
+  }, [onError]);
 
   // Show loading while checking initial state
   if (verifying && !showWidget) {
@@ -89,7 +126,7 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
   }
 
   // Show verified state
-  if (verified) {
+  if (showAsVerified) {
     return (
       <div className={`p-4 rounded-lg bg-green-50 border border-green-200 ${className}`}>
         <div className="flex items-center gap-2">
@@ -97,8 +134,14 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div>
-            <p className="font-medium text-green-800">Identity Verified</p>
-            <p className="text-sm text-green-600">Your World ID is linked to this wallet</p>
+            <p className="font-medium text-green-800">
+              {mode === 'transaction' ? '✓ Biometrically Verified for This Trade' : 'Identity Verified'}
+            </p>
+            <p className="text-sm text-green-600">
+              {mode === 'transaction' 
+                ? `Your iris scan confirms you authorized this $${tradeAmount?.toLocaleString()} trade. Even with stolen keys, attackers can't trade without your biometric proof.`
+                : 'Your World ID is linked to this wallet'}
+            </p>
           </div>
         </div>
       </div>
@@ -116,10 +159,23 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
             </svg>
           </div>
           <div>
-            <p className="font-medium text-blue-900">Verify with World ID</p>
+            <p className="font-medium text-blue-900">
+              {mode === 'transaction' 
+                ? `🔒 High-Value Trade: Biometric Verification Required` 
+                : 'Verify with World ID'}
+            </p>
             <p className="text-sm text-blue-600">
-              Prove you are a unique human to access advanced trading features. 
-              Required for high-value transactions.
+              {mode === 'transaction' && tradeAmount !== undefined ? (
+                <>
+                  This trade is <strong>${tradeAmount.toLocaleString()}</strong>. Before executing, 
+                  you must prove you're really you. 
+                  <span className="text-blue-800 font-medium">
+                    Even if someone stole your keys, they can't access your funds without your iris scan.
+                  </span>
+                </>
+              ) : (
+                <>Prove you are a unique human to access advanced trading features. Required for high-value transactions.</>
+              )}
             </p>
           </div>
         </div>
@@ -149,7 +205,9 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
             onClick={fetchProofRequest}
             className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-medium"
           >
-            {'Verify with World ID'}
+            {mode === 'transaction' 
+              ? `🔐 Verify with Iris Scan to Proceed with $${tradeAmount?.toLocaleString()} Trade`
+              : 'Verify with World ID'}
           </button>
         )}
       </div>
@@ -160,7 +218,7 @@ export function WorldIDVerify({ onVerified, className = '' }: WorldIDVerifyProps
           open={showWidget}
           onOpenChange={setShowWidget}
           app_id={(process.env.NEXT_PUBLIC_WORLDCOIN_APP_ID || 'app_placeholder') as `app_${string}`}
-          action="cerberus_trade_approval"
+          action={mode === 'transaction' ? 'cerberus_high_value_trade' : 'cerberus_trade_approval'}
           preset={deviceLegacy({ signal: address })}
           rp_context={rpContext}
           allow_legacy_proofs={false}

@@ -1,4 +1,4 @@
-// components/XMTPChat.tsx - XMTP Negotiation Layer Interface
+// components/XMTPChat.tsx - XMTP Negotiation Layer Interface with per-transaction World ID
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -6,6 +6,7 @@ import { useXMTP } from '@/hooks/useXMTP';
 import { useAccount } from 'wagmi';
 import { useWorldID } from '@/hooks/useWorldID';
 import { useX402 } from '@/hooks/useX402';
+import { WorldIDVerify } from './WorldIDVerify';
 import { 
   type XMTPNegotiationContent, 
   type Opportunity, 
@@ -46,7 +47,7 @@ AI: ${opp.aiAnalysis}`;
 }
 
 // Check if high value (>$1000)
-function isHighValue(amount: number): boolean {
+function isHighValueTrade(amount: number): boolean {
   return amount > 1000;
 }
 
@@ -72,6 +73,8 @@ export function XMTPChat({ className = '', onApprove, onReject, onExecute }: XMT
   const [newMessage, setNewMessage] = useState('');
   const [pendingProposals, setPendingProposals] = useState<Map<string, Opportunity>>(new Map());
   const [worldIDRequired, setWorldIDRequired] = useState<string | null>(null);
+  const [showWorldIDForTrade, setShowWorldIDForTrade] = useState<Opportunity | null>(null);
+  const [worldIDVerifiedForTrade, setWorldIDVerifiedForTrade] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when messages change
@@ -121,7 +124,7 @@ export function XMTPChat({ className = '', onApprove, onReject, onExecute }: XMT
 
   // Handle approval via XMTP
   const handleApprove = useCallback(async (opportunity: Opportunity) => {
-    const requireWorldID = isHighValue(opportunity.amount);
+    const requireWorldID = isHighValueTrade(opportunity.amount);
     
     // If high value and World ID not verified, require it
     if (requireWorldID && !worldIDVerified) {
@@ -177,8 +180,19 @@ export function XMTPChat({ className = '', onApprove, onReject, onExecute }: XMT
     setWorldIDRequired(null);
   }, [handleApprove]);
 
-  // Handle payment via x402
+  // Handle payment via x402 - with World ID check for high-value trades
   const handlePayAndExecute = useCallback(async (opportunity: Opportunity) => {
+    // Check if this is a high-value trade requiring per-transaction World ID
+    const isHighValue = isHighValueTrade(opportunity.amount);
+    const isWorldIDVerified = worldIDVerified || worldIDVerifiedForTrade === opportunity.id;
+    
+    if (isHighValue && !isWorldIDVerified) {
+      // Show World ID verification modal for this high-value trade
+      setShowWorldIDForTrade(opportunity);
+      return;
+    }
+    
+    // Proceed with x402 payment
     await createX402Payment({
       opportunityId: opportunity.id,
       amount: '1000000000000000', // 0.001 ETH in wei
@@ -187,7 +201,32 @@ export function XMTPChat({ className = '', onApprove, onReject, onExecute }: XMT
     });
     
     onExecute?.(opportunity);
-  }, [createX402Payment, onExecute]);
+  }, [createX402Payment, onExecute, worldIDVerified, worldIDVerifiedForTrade]);
+
+  // Handle World ID verification success for a trade
+  const handleWorldIDSuccessForTrade = useCallback((nullifierHash: string) => {
+    if (showWorldIDForTrade) {
+      setWorldIDVerifiedForTrade(showWorldIDForTrade.id);
+      setShowWorldIDForTrade(null);
+      
+      // Now proceed with payment after World ID verification
+      createX402Payment({
+        opportunityId: showWorldIDForTrade.id,
+        amount: '1000000000000000', // 0.001 ETH in wei
+        tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+        description: `Execute ${showWorldIDForTrade.type} on ${showWorldIDForTrade.protocol}`,
+      });
+      
+      onExecute?.(showWorldIDForTrade);
+    }
+  }, [showWorldIDForTrade, createX402Payment, onExecute]);
+
+  // Handle World ID verification error for a trade
+  const handleWorldIDErrorForTrade = useCallback((error: string) => {
+    console.error('World ID verification failed for trade:', error);
+    // Keep the modal open so user can retry, or close it
+    // setShowWorldIDForTrade(null);
+  }, []);
 
   // Render message content based on type
   const renderMessageContent = (content: string) => {
@@ -263,6 +302,49 @@ export function XMTPChat({ className = '', onApprove, onReject, onExecute }: XMT
 
   return (
     <div className={`flex flex-col h-[600px] bg-white rounded-lg border border-gray-200 ${className}`}>
+      {/* World ID Modal for High-Value Trades */}
+      {showWorldIDForTrade && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md mx-4 bg-white rounded-xl shadow-2xl overflow-hidden">
+            <div className="p-4 bg-gradient-to-r from-amber-500 to-red-500 text-white">
+              <div className="flex items-center gap-2">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <h3 className="font-bold text-lg">High-Value Trade Security Check</h3>
+              </div>
+              <p className="mt-1 text-white/90">
+                Trade: {showWorldIDForTrade.type} on {showWorldIDForTrade.protocol}
+              </p>
+            </div>
+            <div className="p-4">
+              <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <p className="text-sm text-amber-800">
+                  <strong>This trade requires biometric verification.</strong>
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  Amount: ${showWorldIDForTrade.amount.toLocaleString()} (exceeds $1,000 threshold)
+                </p>
+              </div>
+              <WorldIDVerify
+                mode="transaction"
+                tradeAmount={showWorldIDForTrade.amount}
+                tradeId={showWorldIDForTrade.id}
+                onVerified={handleWorldIDSuccessForTrade}
+                onError={handleWorldIDErrorForTrade}
+                className="mb-4"
+              />
+              <button
+                onClick={() => setShowWorldIDForTrade(null)}
+                className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 text-sm"
+              >
+                Cancel Trade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="p-3 border-b border-gray-200 flex items-center justify-between">
         <div>
@@ -331,7 +413,7 @@ export function XMTPChat({ className = '', onApprove, onReject, onExecute }: XMT
                     <p className="text-xs text-gray-500 mb-2">{opp.asset}</p>
                     <p className="text-sm font-semibold text-green-600 mb-2">+{opp.potentialReturn}% return</p>
                     
-                    {isHighValue(opp.amount) && !worldIDVerified && (
+                    {isHighValueTrade(opp.amount) && !worldIDVerified && (
                       <p className="text-xs text-amber-600 mb-2 flex items-center gap-1">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -343,7 +425,7 @@ export function XMTPChat({ className = '', onApprove, onReject, onExecute }: XMT
                     <div className="flex gap-1 mt-2">
                       <button
                         onClick={() => handleApprove(opp)}
-                        disabled={isHighValue(opp.amount) && !worldIDVerified}
+                        disabled={isHighValueTrade(opp.amount) && !worldIDVerified}
                         className="flex-1 px-2 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50 disabled:bg-gray-300"
                       >
                         Approve
