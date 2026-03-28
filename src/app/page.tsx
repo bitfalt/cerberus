@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useSendTransaction, useBalance } from "wagmi";
+import { useAccount, useSendTransaction, useConnect, useDisconnect } from "wagmi";
+import { injected } from "wagmi/connectors";
 import { parseEther, formatEther } from "viem";
+import { useBalance } from "wagmi";
 
 // Mock agent opportunities for demo
 const AGENT_OPPORTUNITIES = [
@@ -50,9 +51,44 @@ interface XMTPMessage {
   proposal?: (typeof AGENT_OPPORTUNITIES)[0];
 }
 
+// Custom Wallet Button Component
+function CustomWalletButton() {
+  const { address, isConnected } = useAccount();
+  const { connect, isPending: isConnecting } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { data: balance } = useBalance({ address });
+
+  if (isConnected && address) {
+    return (
+      <div className="flex items-center gap-3">
+        {balance && (
+          <span className="text-sm text-zinc-400 hidden sm:block">
+            {parseFloat(formatEther(balance.value)).toFixed(4)} ETH
+          </span>
+        )}
+        <button
+          onClick={() => disconnect()}
+          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-all"
+        >
+          {address.slice(0, 6)}...{address.slice(-4)}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => connect({ connector: injected() })}
+      disabled={isConnecting}
+      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+    >
+      {isConnecting ? "Connecting..." : "Connect Wallet"}
+    </button>
+  );
+}
+
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const { data: balance } = useBalance({ address });
   const { sendTransaction, isPending: isSending } = useSendTransaction();
   
   const [worldIdVerified, setWorldIdVerified] = useState(false);
@@ -216,14 +252,7 @@ export default function Home() {
               <p className="text-xs text-zinc-400">Human-in-the-Loop Agent Governance</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            {isConnected && balance && (
-              <div className="text-sm text-zinc-400">
-                Balance: {parseFloat(formatEther(balance.value)).toFixed(4)} ETH
-              </div>
-            )}
-            <ConnectButton />
-          </div>
+          <CustomWalletButton />
         </div>
       </header>
 
@@ -240,7 +269,7 @@ export default function Home() {
             <p className="text-sm text-zinc-500 max-w-md mb-8">
               Powered by World ID • Coinbase x402 • XMTP
             </p>
-            <ConnectButton />
+            <CustomWalletButton />
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

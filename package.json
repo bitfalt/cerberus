@@ -7,9 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist --repo https://github.com/bitfalt/agentauth-demo.git"
   },
-  "homepage": "https://bitfalt.github.io/agentkit-hackathon-agentauth/",
   "dependencies": {
     "@coinbase/onchainkit": "^1.1.2",
     "@rainbow-me/rainbowkit": "^2.2.10",
