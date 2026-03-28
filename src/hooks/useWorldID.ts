@@ -25,15 +25,16 @@ export function useWorldID() {
     nullifierHash: null,
   });
 
-  // Check verification status - try API first, then fall back to mock
+  // Check verification status via API
   const checkVerification = useCallback(async () => {
     if (!address) {
       setState(prev => ({ ...prev, verified: false }));
       return;
     }
 
+    setState(prev => ({ ...prev, verifying: true, error: null }));
+
     try {
-      // Try to check via API (works before Convex is set up)
       const response = await fetch(`/api/worldid/verify?wallet=${address}`);
       if (response.ok) {
         const data = await response.json();
@@ -41,28 +42,24 @@ export function useWorldID() {
           ...prev,
           verified: data.verified,
           nullifierHash: data.nullifierHash || null,
+          verifying: false,
         }));
         return;
       }
-    } catch {
-      // API not available, fall back to localStorage
-    }
 
-    // Fallback: check localStorage
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(`worldid_${address.toLowerCase()}`);
-      if (stored) {
-        const data = JSON.parse(stored);
-        setState(prev => ({
-          ...prev,
-          verified: true,
-          nullifierHash: data.nullifierHash,
-        }));
-      }
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to check verification status');
+    } catch (err) {
+      console.error('World ID check error:', err);
+      setState(prev => ({
+        ...prev,
+        verifying: false,
+        error: err instanceof Error ? err.message : 'Failed to check verification',
+      }));
     }
   }, [address]);
 
-  // Verify with World ID
+  // Verify with World ID - called after IDKit returns a real proof
   const verify = useCallback(async (proof: WorldIDProof) => {
     if (!address) {
       setState(prev => ({ ...prev, error: 'Wallet not connected' }));
@@ -72,7 +69,6 @@ export function useWorldID() {
     setState(prev => ({ ...prev, verifying: true, error: null }));
 
     try {
-      // Try API first
       const response = await fetch('/api/worldid/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,46 +78,27 @@ export function useWorldID() {
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setState(prev => ({
-          ...prev,
-          verified: true,
-          verifying: false,
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Verification failed');
+      }
+
+      const data = await response.json();
+      
+      setState(prev => ({
+        ...prev,
+        verified: true,
+        verifying: false,
+        nullifierHash: data.nullifierHash || proof.nullifier_hash,
+      }));
+
+      // Store in localStorage as backup for client-side checks
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`worldid_${address.toLowerCase()}`, JSON.stringify({
           nullifierHash: data.nullifierHash || proof.nullifier_hash,
+          verifiedAt: Date.now(),
         }));
-
-        // Store in localStorage as backup
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(`worldid_${address.toLowerCase()}`, JSON.stringify({
-            nullifierHash: data.nullifierHash || proof.nullifier_hash,
-            verifiedAt: Date.now(),
-          }));
-        }
-        return;
       }
-
-      // If API fails, fall back to mock verification for development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: mocking World ID verification');
-        setState(prev => ({
-          ...prev,
-          verified: true,
-          verifying: false,
-          nullifierHash: proof.nullifier_hash,
-        }));
-
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(`worldid_${address.toLowerCase()}`, JSON.stringify({
-            nullifierHash: proof.nullifier_hash,
-            verifiedAt: Date.now(),
-          }));
-        }
-        return;
-      }
-
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Verification failed');
     } catch (error) {
       console.error('World ID verification error:', error);
       setState(prev => ({
