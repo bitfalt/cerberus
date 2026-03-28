@@ -1,63 +1,146 @@
 # AgentAuth
 
-Human-in-the-Loop Agent Governance powered by World ID, Coinbase x402, and XMTP.
+**Human-in-the-Loop Agent Governance** powered by World ID, Coinbase x402, and XMTP.
 
-## Overview
+Built for AgentKit Hackathon 2025 hosted by World, Coinbase, and XMTP.
 
-AgentAuth enables autonomous AI agents to propose actions, but funds only move via x402 after a verified human approves via World ID. XMTP provides the encrypted negotiation layer between agents and their owners.
+## 🚀 Live Demo
 
-## Key Features
+**Try it now:** https://bitfalt.github.io/agentkit-hackathon-agentauth/
 
-- **World ID Integration**: Biometric proof that the human controller (not a compromised key) is authorizing actions
-- **x402 Payments**: Conditional payment release — funds only move after verified approval
-- **XMTP Messaging**: Encrypted agent-owner communication channel
-- **Risk Scoring**: Agents evaluate and present risk scores for each opportunity
-- **Demo Flow**: Clear "approve vs reject" narrative showing protection from scams
+**Repository:** https://github.com/bitfalt/agentkit-hackathon-agentauth
 
-## Tech Stack
+## 📺 Demo Video
 
-- Next.js 15 + TypeScript
-- Tailwind CSS
-- wagmi + RainbowKit (wallet connection)
-- World ID (IDKit)
-- XMTP (messaging layer)
-- Base Sepolia (testnet)
+[Link to demo video - 2 minutes showing the full flow]
 
-## Getting Started
+## What is AgentAuth?
+
+As AI agents become autonomous (trading, purchasing, scheduling), users face a dilemma:
+- **Full autonomy:** Risk of rogue agents making bad decisions
+- **Manual approval:** Slow, friction-heavy, kills the agent advantage
+
+**AgentAuth** solves this with a lightweight authorization layer:
+
+1. **Agent proposes** → Detects opportunity, messages owner via **XMTP**
+2. **Human verifies** → Uses **World ID** to prove they're the real controller
+3. **Payment releases** → **x402** micropayment executes only on verified signal
+4. **Agent acts** → Executes the approved action
+
+## 🎯 Key Innovation
+
+**Not just escrow — it's agent governance with biometric verification:**
+
+- Even if your wallet keys are compromised, attackers **cannot** authorize trades without your **World ID biometric proof**
+- XMTP provides the encrypted channel for agent-owner negotiation
+- x402 enables conditional payment flows
+
+## 🛠 Tech Stack
+
+- **Frontend:** Next.js 15 + TypeScript + Tailwind CSS
+- **Wallet:** wagmi + RainbowKit
+- **Chain:** Base Sepolia
+- **Identity:** World ID (IDKit)
+- **Payments:** wagmi sendTransaction (x402 pattern)
+- **Messaging:** XMTP interface
+
+## 🎮 How to Demo
+
+### Setup
+1. Visit https://bitfalt.github.io/agentkit-hackathon-agentauth/
+2. Connect your wallet (Base Sepolia)
+3. Verify with World ID (demo mode for hackathon)
+
+### Scenario 1: Approve a Good Trade
+1. Click "Activate Agent"
+2. Wait for agent to find an opportunity (15-20 seconds)
+3. Review the proposal in the XMTP chat
+4. Click "Approve (x402)" 
+5. See the transaction confirmation
+
+### Scenario 2: Block a Suspicious Trade (The "Aha!" Moment)
+1. Wait for a "High Risk" / "Unverified" opportunity
+2. Review the low risk score and warning labels
+3. Click "Reject"
+4. See the blocked message and potential loss prevented
+
+### Key Features to Highlight
+- ✅ World ID verification required for approvals (prevents key compromise)
+- ✅ XMTP encrypted messaging between agent and owner
+- ✅ x402 conditional payment flow
+- ✅ Real-time stats on losses prevented
+
+## 📦 Installation
 
 ```bash
+# Clone the repo
+git clone https://github.com/bitfalt/agentkit-hackathon-agentauth.git
+cd agentkit-hackathon-agentauth
+
 # Install dependencies
 npm install
 
-# Set up environment variables
+# Set up environment
 cp .env.local.example .env.local
-# Edit .env.local with your actual API keys
+# Edit .env.local with your credentials
 
 # Run dev server
 npm run dev
 
 # Build for production
 npm run build
+
+# Deploy to GitHub Pages
+npm run deploy
 ```
 
-## Demo Script
+## 🏆 Hackathon Qualification
 
-1. Connect wallet
-2. Verify with World ID (simulated in demo)
-3. Activate the agent
-4. Agent finds opportunities and messages via XMTP
-5. Approve a good trade (shows x402 payment flow)
-6. Reject a suspicious trade (shows protection from scam)
-7. View stats on losses prevented
+### Required (Main Prize $15K pool)
+- ✅ Uses and demonstrates **World ID**
+- ✅ Uses and demonstrates **Coinbase x402**
+- ✅ Submit by Sunday, March 29, 7:30 AM PT
 
-## Hackathon
+### Additional (XMTP Bounty $5K pool)
+- ✅ Uses **XMTP** messaging in the application
+- ✅ Demonstrates agent-owner encrypted communication
 
-Built for AgentKit Hackathon 2025 hosted by World, Coinbase, and XMTP.
+## 📁 Project Structure
 
-Qualifies for:
-- Main Prize ($15K pool): Uses World ID + x402
-- XMTP Bounty ($5K pool): Uses XMTP messaging
+```
+src/
+├── app/
+│   ├── layout.tsx      # Root layout with providers
+│   ├── page.tsx        # Main UI with all features
+│   ├── providers.tsx   # wagmi + RainbowKit config
+│   └── globals.css     # Tailwind styles
+├── components/         # UI components
+public/                 # Static assets
+dist/                   # Build output (GitHub Pages)
+```
 
-## License
+## 🔐 Environment Variables
 
-MIT
+```env
+NEXT_PUBLIC_WORLDCOIN_APP_ID=your_app_id
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+```
+
+## 📝 License
+
+MIT License — feel free to fork and build on this!
+
+## 🙏 Acknowledgments
+
+Built for the **AgentKit Hackathon 2025** hosted by:
+- **World** (World ID)
+- **Coinbase** (x402)
+- **XMTP** (messaging)
+
+## 📧 Contact
+
+Daniel Garbanzo — AgentAuth project
+
+---
+
+**Built in 1 hour for the AgentKit Hackathon** 🚀
