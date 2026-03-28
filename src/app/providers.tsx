@@ -9,9 +9,14 @@ import { base } from 'wagmi/chains';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 
 // Wagmi + RainbowKit config
+const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+if (!walletConnectProjectId || walletConnectProjectId === 'demo_project_id') {
+  console.warn('[Cerberus] NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set. Get one at https://cloud.walletconnect.com');
+}
+
 const config = getDefaultConfig({
   appName: 'Cerberus Agent',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'development',
+  projectId: walletConnectProjectId || 'demo_project_id',
   chains: [base],
   ssr: true,
 });
