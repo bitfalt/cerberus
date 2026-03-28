@@ -11,6 +11,9 @@ interface VerifyRequest {
   signal: string;
 }
 
+// In-memory store for development (replace with Redis/DB in production)
+const verificationStore = new Map<string, { nullifierHash: string; verifiedAt: number }>();
+
 // Check verification status (GET)
 export async function GET(request: NextRequest) {
   try {
@@ -24,13 +27,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // In production, check Convex or database
-    // For now, check if we have localStorage data (server can't access localStorage,
-    // but client will use this endpoint once Convex is set up)
+    const normalizedWallet = wallet.toLowerCase();
+    const stored = verificationStore.get(normalizedWallet);
+    
     return NextResponse.json({
-      verified: false,
-      wallet,
-      note: 'Use POST to verify',
+      verified: !!stored,
+      wallet: normalizedWallet,
+      nullifierHash: stored?.nullifierHash || null,
     });
   } catch (error) {
     console.error('World ID check error:', error);
@@ -57,19 +60,23 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.WORLDID_API_KEY;
 
     if (!appId || !apiKey) {
-      // Development fallback - accept any valid-looking proof
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: accepting mock World ID proof');
-        return NextResponse.json({ verified: true, mock: true, nullifierHash: proof.nullifier_hash });
-      }
-
       return NextResponse.json(
         { error: 'World ID not configured' },
         { status: 500 }
       );
     }
 
-    // Verify with World ID API
+    // Check if nullifier already used (prevent Sybil attacks)
+    for (const [wallet, data] of verificationStore.entries()) {
+      if (data.nullifierHash === proof.nullifier_hash && wallet !== signal.toLowerCase()) {
+        return NextResponse.json(
+          { error: 'This World ID has already verified a different wallet' },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Verify with World ID API v2
     const response = await fetch('https://developer.worldcoin.org/api/v2/verify', {
       method: 'POST',
       headers: {
@@ -96,6 +103,14 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await response.json();
+
+    // Store verification in memory (replace with Convex/DB in production)
+    if (result.success || result.success === undefined) {
+      verificationStore.set(signal.toLowerCase(), {
+        nullifierHash: proof.nullifier_hash,
+        verifiedAt: Date.now(),
+      });
+    }
 
     return NextResponse.json({
       verified: result.success ?? true,
