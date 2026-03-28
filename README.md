@@ -1,26 +1,28 @@
-# AgentAuth
+# Cerberus 🐕‍🦺
 
 **Human-in-the-Loop Agent Governance** powered by World ID, Coinbase x402, and XMTP.
 
 Built for AgentKit Hackathon 2025 hosted by World, Coinbase, and XMTP.
 
+> Named after the three-headed guardian of the underworld — Cerberus guards your agents with three protections: World ID (biometric proof), x402 (payment guard), and XMTP (communication encryption).
+
 ## 🚀 Live Demo
 
-**Try it now:** https://bitfalt.github.io/agentkit-hackathon-agentauth/
+**Try it now:** [https://cerberus-demo.vercel.app](https://cerberus-demo.vercel.app)
 
-**Repository:** https://github.com/bitfalt/agentkit-hackathon-agentauth
+**Repository:** https://github.com/bitfalt/cerberus
 
 ## 📺 Demo Video
 
 [Link to demo video - 2 minutes showing the full flow]
 
-## What is AgentAuth?
+## What is Cerberus?
 
 As AI agents become autonomous (trading, purchasing, scheduling), users face a dilemma:
 - **Full autonomy:** Risk of rogue agents making bad decisions
 - **Manual approval:** Slow, friction-heavy, kills the agent advantage
 
-**AgentAuth** solves this with a lightweight authorization layer:
+**Cerberus** solves this with a lightweight authorization layer:
 
 1. **Agent proposes** → Detects opportunity, messages owner via **XMTP**
 2. **Human verifies** → Uses **World ID** to prove they're the real controller
@@ -47,7 +49,7 @@ As AI agents become autonomous (trading, purchasing, scheduling), users face a d
 ## 🎮 How to Demo
 
 ### Setup
-1. Visit https://bitfalt.github.io/agentkit-hackathon-agentauth/
+1. Visit the live demo
 2. Connect your wallet (Base Sepolia)
 3. Verify with World ID (demo mode for hackathon)
 
@@ -74,8 +76,8 @@ As AI agents become autonomous (trading, purchasing, scheduling), users face a d
 
 ```bash
 # Clone the repo
-git clone https://github.com/bitfalt/agentkit-hackathon-agentauth.git
-cd agentkit-hackathon-agentauth
+git clone https://github.com/bitfalt/cerberus.git
+cd cerberus
 
 # Install dependencies
 npm install
@@ -89,9 +91,6 @@ npm run dev
 
 # Build for production
 npm run build
-
-# Deploy to GitHub Pages
-npm run deploy
 ```
 
 ## 🏆 Hackathon Qualification
@@ -114,9 +113,7 @@ src/
 │   ├── page.tsx        # Main UI with all features
 │   ├── providers.tsx   # wagmi + RainbowKit config
 │   └── globals.css     # Tailwind styles
-├── components/         # UI components
 public/                 # Static assets
-dist/                   # Build output (GitHub Pages)
 ```
 
 ## 🔐 Environment Variables
@@ -139,8 +136,8 @@ Built for the **AgentKit Hackathon 2025** hosted by:
 
 ## 📧 Contact
 
-Daniel Garbanzo — AgentAuth project
+Daniel Garbanzo — Cerberus project
 
 ---
 
-**Built in 1 hour for the AgentKit Hackathon** 🚀
+**Built for the AgentKit Hackathon** 🐕‍🦺
