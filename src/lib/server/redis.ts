@@ -3,15 +3,27 @@ import "server-only";
 import Redis from "ioredis";
 let client: Redis | null = null;
 
+function getRedisUrl() {
+  const url = process.env.UPSTASH_REDIS_URL ?? process.env.REDIS_URL;
+  if (!url) {
+    throw new Error("Redis is required in production mode. Set REDIS_URL or UPSTASH_REDIS_URL.");
+  }
+
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    throw new Error(
+      "Redis URL is misconfigured. Use the Upstash TCP Redis URL (redis:// or rediss://), not the Upstash REST URL (https://)."
+    );
+  }
+
+  return url;
+}
+
 export function getRedis(): Redis {
   if (client) {
     return client;
   }
 
-  const url = process.env.UPSTASH_REDIS_URL ?? process.env.REDIS_URL;
-  if (!url) {
-    throw new Error("Redis is required in production mode. Set REDIS_URL or UPSTASH_REDIS_URL.");
-  }
+  const url = getRedisUrl();
 
   client = new Redis(url, {
     maxRetriesPerRequest: 3,
@@ -24,6 +36,12 @@ export function getRedis(): Redis {
   });
 
   return client;
+}
+
+export async function ensureRedisReady() {
+  const redis = getRedis();
+  await redis.ping();
+  return redis;
 }
 
 export async function getJson<T>(key: string): Promise<T | null> {

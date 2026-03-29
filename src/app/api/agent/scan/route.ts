@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { enqueueScanRequest, listProposalRecordsByWallet, listScanRequestsByWallet } from "@/lib/server/workflow";
 import { getSupportedPaymentNetworks, resolveRequestedPaymentNetwork } from "@/lib/payments";
+import { ensureRedisReady } from "@/lib/server/redis";
 
 const bodySchema = z.object({
   wallet: z.string(),
@@ -21,17 +22,19 @@ export async function GET(request: Request) {
     if (!wallet) {
       return NextResponse.json({ error: "wallet query parameter is required" }, { status: 400 });
     }
+    await ensureRedisReady();
     const proposals = await listProposalRecordsByWallet(wallet.toLowerCase());
     const scans = await listScanRequestsByWallet(wallet.toLowerCase());
     return NextResponse.json({ proposals, scans });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load agent proposals" }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load agent proposals" }, { status: 503 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = bodySchema.parse(await request.json());
+    await ensureRedisReady();
     const paymentNetwork = resolveRequestedPaymentNetwork(body.paymentNetwork);
     const scanRequest = await enqueueScanRequest({
       scanRequestId: randomUUID(),
@@ -53,6 +56,6 @@ export async function POST(request: Request) {
       queued: true,
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Agent scan failed" }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Agent scan failed" }, { status: 503 });
   }
 }

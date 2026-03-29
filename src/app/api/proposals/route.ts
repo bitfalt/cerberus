@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listProposalRecordsByWallet } from "@/lib/server/workflow";
+import { ensureRedisReady } from "@/lib/server/redis";
 
 export async function GET(request: Request) {
   try {
@@ -9,9 +10,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "wallet query parameter is required" }, { status: 400 });
     }
 
+    await ensureRedisReady();
     const proposals = await listProposalRecordsByWallet(wallet.toLowerCase());
     return NextResponse.json({ proposals });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load proposals" }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load proposals" }, { status: 503 });
   }
 }
