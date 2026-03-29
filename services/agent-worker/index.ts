@@ -1,14 +1,19 @@
 import { setTimeout as sleep } from "node:timers/promises";
+import { randomUUID } from "node:crypto";
 import { Client, createBackend, type DecodedMessage, type Identifier, type Signer } from "@xmtp/node-sdk";
 import { hexToBytes, toBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { serverEnv } from "../../src/lib/env";
+import { getWorkerEnv } from "../../src/lib/env";
 import { log } from "../../src/lib/server/logger";
-import { listAllProposalRecords, updateProposalRecord } from "../../src/lib/server/workflow";
+import { createProposalRecord, dequeueScanRequest, listAllProposalRecords, updateProposalRecord, updateScanRequest } from "../../src/lib/server/workflow";
 import { serializeXMTPMessage } from "../../src/lib/protocol/messages";
+import { scanWithAgentKit } from "../../src/lib/agentkit/agent";
+import { hashProposal } from "../../src/lib/protocol/hash";
+import { proposalSchema } from "../../src/lib/protocol/schemas";
 
 function createSigner(): Signer {
-const account = privateKeyToAccount(serverEnv.XMTP_WALLET_KEY as `0x${string}`);
+  const workerEnv = getWorkerEnv();
+const account = privateKeyToAccount(workerEnv.XMTP_WALLET_KEY as `0x${string}`);
   const identifier: Identifier = {
     identifier: account.address.toLowerCase(),
     identifierKind: 0,
@@ -25,13 +30,14 @@ const account = privateKeyToAccount(serverEnv.XMTP_WALLET_KEY as `0x${string}`);
 }
 
 async function createClient() {
+  const workerEnv = getWorkerEnv();
   const signer = createSigner();
-  const backend = await createBackend({ env: serverEnv.XMTP_ENV ?? serverEnv.NEXT_PUBLIC_XMTP_ENV });
+  const backend = await createBackend({ env: workerEnv.XMTP_ENV });
   const client = await Client.create(signer, {
     backend,
     appVersion: "cerberus/1.0.0",
-    dbPath: serverEnv.XMTP_DB_PATH,
-    dbEncryptionKey: hexToBytes(serverEnv.XMTP_DB_ENCRYPTION_KEY as `0x${string}`),
+    dbPath: workerEnv.XMTP_DB_PATH,
+    dbEncryptionKey: hexToBytes(workerEnv.XMTP_DB_ENCRYPTION_KEY as `0x${string}`),
   } as unknown as Parameters<typeof Client.create>[1]);
   await client.conversations.syncAll();
   return client;
@@ -74,6 +80,67 @@ async function publishPendingProposals(client: Client<unknown>) {
       wallet: record.wallet,
       conversationId: dm.id,
       messageId,
+    });
+  }
+}
+
+async function processQueuedScans() {
+  const scanRequest = await dequeueScanRequest();
+  if (!scanRequest) {
+    return;
+  }
+
+  await updateScanRequest(scanRequest.scanRequestId, { status: "processing" });
+
+  try {
+    const generated = await scanWithAgentKit({
+      wallet: scanRequest.wallet,
+      vault: scanRequest.vault,
+      paymentNetwork: scanRequest.paymentNetwork,
+      adapter: scanRequest.adapter as `0x${string}`,
+      tokenIn: scanRequest.tokenIn as `0x${string}`,
+      tokenOut: scanRequest.tokenOut as `0x${string}`,
+      router: scanRequest.router as `0x${string}`,
+    });
+
+    const proposalIds: string[] = [];
+    for (const { proposal } of generated) {
+      const normalized = proposalSchema.parse({
+        ...proposal,
+        proposalId: proposal.proposalId || randomUUID(),
+      });
+      const proposalHash = hashProposal(normalized);
+      await createProposalRecord({
+        proposal: normalized,
+        proposalHash,
+        wallet: scanRequest.wallet,
+        vault: scanRequest.vault,
+        status: "proposed",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      proposalIds.push(normalized.proposalId);
+    }
+
+    await updateScanRequest(scanRequest.scanRequestId, {
+      status: "completed",
+      createdProposalIds: proposalIds,
+    });
+
+    log("info", "worker.scan.completed", {
+      scanRequestId: scanRequest.scanRequestId,
+      wallet: scanRequest.wallet,
+      proposalCount: proposalIds.length,
+    });
+  } catch (error) {
+    await updateScanRequest(scanRequest.scanRequestId, {
+      status: "failed",
+      error: error instanceof Error ? error.message : "Unknown scan error",
+    });
+    log("error", "worker.scan.failed", {
+      scanRequestId: scanRequest.scanRequestId,
+      wallet: scanRequest.wallet,
+      error: error instanceof Error ? error.message : "Unknown scan error",
     });
   }
 }
@@ -137,6 +204,7 @@ async function main() {
 
   while (true) {
     try {
+      await processQueuedScans();
       await publishPendingProposals(client);
     } catch (error) {
       log("error", "worker.publish_failed", {

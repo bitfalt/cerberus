@@ -1,8 +1,6 @@
 import "server-only";
 
 import Redis from "ioredis";
-import { serverEnv } from "@/lib/env";
-
 let client: Redis | null = null;
 
 export function getRedis(): Redis {
@@ -10,7 +8,7 @@ export function getRedis(): Redis {
     return client;
   }
 
-  const url = serverEnv.UPSTASH_REDIS_URL ?? serverEnv.REDIS_URL;
+  const url = process.env.UPSTASH_REDIS_URL ?? process.env.REDIS_URL;
   if (!url) {
     throw new Error("Redis is required in production mode. Set REDIS_URL or UPSTASH_REDIS_URL.");
   }

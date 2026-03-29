@@ -8,7 +8,7 @@ import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { DEMO_LIMITS } from "@/lib/protocol/constants";
 import { hashProposal } from "@/lib/protocol/hash";
 import { proposalSchema, type Proposal } from "@/lib/protocol/schemas";
-import { hasAgentWorkerEnv, serverEnv } from "@/lib/env";
+import { getWorkerEnv, hasAgentWorkerEnv } from "@/lib/env";
 
 type ScanInput = {
   wallet: string;
@@ -36,10 +36,12 @@ async function initializeAgent() {
     throw new Error("Agent worker environment is incomplete. Set OpenAI, CDP, and XMTP worker credentials.");
   }
 
+  const workerEnv = getWorkerEnv();
+
   const walletProvider = await CdpEvmWalletProvider.configureWithWallet({
-    apiKeyId: serverEnv.CDP_API_KEY_ID!,
-    apiKeySecret: serverEnv.CDP_API_KEY_SECRET!,
-    networkId: serverEnv.NETWORK_ID,
+    apiKeyId: workerEnv.CDP_API_KEY_ID,
+    apiKeySecret: workerEnv.CDP_API_KEY_SECRET,
+    networkId: workerEnv.NETWORK_ID,
   });
 
   const walletAddress = await walletProvider.getAddress();
@@ -49,7 +51,7 @@ async function initializeAgent() {
   });
   const llm = new ChatOpenAI({
     model: "gpt-4o-mini",
-    apiKey: serverEnv.OPENAI_API_KEY!,
+    apiKey: workerEnv.OPENAI_API_KEY,
     temperature: 0.1,
   });
   const tools = await getLangChainTools(agentKit);

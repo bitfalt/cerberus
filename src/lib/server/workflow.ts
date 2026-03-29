@@ -18,6 +18,24 @@ export type ProposalStatus =
   | "withdrawal_pending"
   | "recovery_pending";
 
+export type ScanRequestStatus = "queued" | "processing" | "completed" | "failed";
+
+export type ScanRequest = {
+  scanRequestId: string;
+  wallet: string;
+  vault: string;
+  paymentNetwork: "base-sepolia" | "world";
+  adapter: string;
+  tokenIn: string;
+  tokenOut: string;
+  router: string;
+  status: ScanRequestStatus;
+  requestedAt: number;
+  updatedAt: number;
+  error?: string;
+  createdProposalIds?: string[];
+};
+
 export type ProposalRecord = {
   proposal: Proposal;
   proposalHash: string;
@@ -47,6 +65,7 @@ function walletProposalIndex(wallet: string) {
 }
 
 const GLOBAL_PROPOSAL_INDEX = "proposalIndex:all";
+const SCAN_QUEUE_KEY = "scanRequests:queue";
 
 function paymentKey(paymentId: string) {
   return `payment:${paymentId}`;
@@ -54,6 +73,14 @@ function paymentKey(paymentId: string) {
 
 function paymentByProposalKey(proposalId: string) {
   return `paymentByProposal:${proposalId}`;
+}
+
+function scanRequestKey(scanRequestId: string) {
+  return `scanRequest:${scanRequestId}`;
+}
+
+function walletScanIndex(wallet: string) {
+  return `scanRequestIndex:wallet:${wallet.toLowerCase()}`;
 }
 
 export async function createProposalRecord(record: ProposalRecord) {
@@ -71,6 +98,50 @@ export async function listAllProposalRecords() {
   const proposalIds = await getRedis().smembers(GLOBAL_PROPOSAL_INDEX);
   const proposals = await Promise.all(proposalIds.map((proposalId) => getProposalRecord(proposalId)));
   return proposals.filter((proposal): proposal is ProposalRecord => proposal !== null).sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export async function enqueueScanRequest(scanRequest: ScanRequest) {
+  const ttlSeconds = Math.floor(TTL_MS.proposal / 1000);
+  await setJson(scanRequestKey(scanRequest.scanRequestId), scanRequest, ttlSeconds);
+  await getRedis().rpush(SCAN_QUEUE_KEY, scanRequest.scanRequestId);
+  await getRedis().sadd(walletScanIndex(scanRequest.wallet), scanRequest.scanRequestId);
+  await getRedis().expire(walletScanIndex(scanRequest.wallet), ttlSeconds);
+  return scanRequest;
+}
+
+export async function getScanRequest(scanRequestId: string) {
+  return await getJson<ScanRequest>(scanRequestKey(scanRequestId));
+}
+
+export async function updateScanRequest(scanRequestId: string, updates: Partial<Omit<ScanRequest, "scanRequestId" | "wallet" | "vault" | "requestedAt">>) {
+  const existing = await getScanRequest(scanRequestId);
+  if (!existing) {
+    throw new Error(`Scan request ${scanRequestId} not found`);
+  }
+
+  const next: ScanRequest = {
+    ...existing,
+    ...updates,
+    updatedAt: Date.now(),
+  };
+
+  await setJson(scanRequestKey(scanRequestId), next, Math.floor(TTL_MS.proposal / 1000));
+  return next;
+}
+
+export async function dequeueScanRequest() {
+  const scanRequestId = await getRedis().lpop(SCAN_QUEUE_KEY);
+  if (!scanRequestId) {
+    return null;
+  }
+
+  return await getScanRequest(scanRequestId);
+}
+
+export async function listScanRequestsByWallet(wallet: string) {
+  const ids = await getRedis().smembers(walletScanIndex(wallet));
+  const requests = await Promise.all(ids.map((id) => getScanRequest(id)));
+  return requests.filter((request): request is ScanRequest => request !== null).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export async function listProposalRecordsByWallet(wallet: string) {

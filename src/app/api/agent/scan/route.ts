@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { scanWithAgentKit } from "@/lib/agentkit/agent";
-import { createProposalRecord, listProposalRecordsByWallet } from "@/lib/server/workflow";
-import { hashProposal } from '@/lib/protocol/hash';
-import { proposalSchema } from "@/lib/protocol/schemas";
+import { enqueueScanRequest, listProposalRecordsByWallet, listScanRequestsByWallet } from "@/lib/server/workflow";
+import { getSupportedPaymentNetworks, resolveRequestedPaymentNetwork } from "@/lib/payments";
 
 const bodySchema = z.object({
   wallet: z.string(),
@@ -24,7 +22,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "wallet query parameter is required" }, { status: 400 });
     }
     const proposals = await listProposalRecordsByWallet(wallet.toLowerCase());
-    return NextResponse.json({ proposals });
+    const scans = await listScanRequestsByWallet(wallet.toLowerCase());
+    return NextResponse.json({ proposals, scans });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load agent proposals" }, { status: 400 });
   }
@@ -33,37 +32,26 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = bodySchema.parse(await request.json());
-    const scanned = await scanWithAgentKit({
+    const paymentNetwork = resolveRequestedPaymentNetwork(body.paymentNetwork);
+    const scanRequest = await enqueueScanRequest({
+      scanRequestId: randomUUID(),
       wallet: body.wallet,
       vault: body.vault,
-      paymentNetwork: body.paymentNetwork,
-      adapter: body.adapter as `0x${string}`,
-      tokenIn: body.tokenIn as `0x${string}`,
-      tokenOut: body.tokenOut as `0x${string}`,
-      router: body.router as `0x${string}`,
+      paymentNetwork,
+      adapter: body.adapter.toLowerCase(),
+      tokenIn: body.tokenIn.toLowerCase(),
+      tokenOut: body.tokenOut.toLowerCase(),
+      router: body.router.toLowerCase(),
+      status: "queued",
+      requestedAt: Date.now(),
+      updatedAt: Date.now(),
     });
 
-    const records = await Promise.all(
-      scanned.map(async ({ proposal }) => {
-        const normalized = proposalSchema.parse({
-          ...proposal,
-          proposalId: proposal.proposalId || randomUUID(),
-        });
-        const normalizedHash = hashProposal(normalized);
-
-        return await createProposalRecord({
-          proposal: normalized,
-          proposalHash: normalizedHash,
-          wallet: body.wallet.toLowerCase(),
-          vault: body.vault.toLowerCase(),
-          status: "proposed",
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      })
-    );
-
-    return NextResponse.json({ proposals: records });
+    return NextResponse.json({
+      scanRequest,
+      supportedPaymentNetworks: getSupportedPaymentNetworks(),
+      queued: true,
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Agent scan failed" }, { status: 400 });
   }

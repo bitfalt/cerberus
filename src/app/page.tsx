@@ -11,6 +11,14 @@ import { useCerberusX402 } from '@/hooks/useCerberusX402';
 import { WorldIdActionButton } from '@/components/WorldIdActionButton';
 import { cerberusDomain, executionAuthorizationTypes, toExecutionTypedData, toWithdrawalTypedData, withdrawalAuthorizationTypes } from '@/lib/protocol/eip712';
 
+const configuredPaymentNetworks = publicEnv.NEXT_PUBLIC_SUPPORTED_PAYMENT_NETWORKS.split(',')
+  .map((value) => value.trim())
+  .filter((value): value is 'base-sepolia' | 'world' => value === 'base-sepolia' || value === 'world');
+
+const defaultPaymentNetwork = configuredPaymentNetworks.includes(publicEnv.NEXT_PUBLIC_DEFAULT_PAYMENT_NETWORK)
+  ? publicEnv.NEXT_PUBLIC_DEFAULT_PAYMENT_NETWORK
+  : configuredPaymentNetworks[0] ?? 'base-sepolia';
+
 type ProposalRecord = {
   proposal: {
     proposalId: string;
@@ -206,7 +214,7 @@ export default function Home() {
       body: JSON.stringify({
         wallet: address,
         vault: activeVault,
-        paymentNetwork: publicEnv.NEXT_PUBLIC_DEFAULT_PAYMENT_NETWORK,
+        paymentNetwork: defaultPaymentNetwork,
         adapter: publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_SWAP_ADAPTER,
         tokenIn: publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_USDC,
         tokenOut: '0x0000000000000000000000000000000000000000',
@@ -214,7 +222,7 @@ export default function Home() {
       }),
     });
     const payload = await response.json();
-    setScanStatus(response.ok ? `Scan complete. ${payload.proposals?.length ?? 0} proposal(s) staged.` : payload.error ?? 'Scan failed');
+    setScanStatus(response.ok ? `Scan queued. Request ${payload.scanRequest?.scanRequestId ?? 'created'} is now waiting for the worker.` : payload.error ?? 'Scan failed');
     await refreshProposals();
   };
 
@@ -234,13 +242,10 @@ export default function Home() {
       approvalScope: 'execute',
     });
 
-    await fetch(`/api/proposals/${proposal.proposal.proposalId}/approve`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ wallet: address, messageId }),
-    });
-
-    await refreshProposals();
+    setScanStatus(`XMTP approval sent as ${messageId}. Waiting for the worker to mark the proposal approved.`);
+    window.setTimeout(() => {
+      void refreshProposals();
+    }, 3000);
   };
 
   const rejectProposal = async (proposal: ProposalRecord) => {
@@ -257,13 +262,10 @@ export default function Home() {
       reason,
     });
 
-    await fetch(`/api/proposals/${proposal.proposal.proposalId}/reject`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ wallet: address, reason }),
-    });
-
-    await refreshProposals();
+    setScanStatus('XMTP rejection sent. Waiting for the worker to close the proposal.');
+    window.setTimeout(() => {
+      void refreshProposals();
+    }, 3000);
   };
 
   const settlePayment = async (proposal: ProposalRecord) => {
@@ -444,7 +446,7 @@ export default function Home() {
               <ConnectButton />
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
                 <span className="rounded-full border border-white/10 px-3 py-1">Exec chain: Base Sepolia</span>
-                <span className="rounded-full border border-white/10 px-3 py-1">x402 default: {publicEnv.NEXT_PUBLIC_DEFAULT_PAYMENT_NETWORK}</span>
+                <span className="rounded-full border border-white/10 px-3 py-1">x402 default: {defaultPaymentNetwork}</span>
                 <span className="rounded-full border border-white/10 px-3 py-1">World ID v4</span>
                 <span className="rounded-full border border-white/10 px-3 py-1">XMTP real agent path</span>
               </div>

@@ -23,10 +23,23 @@ The live architecture is:
 - Convex-backed World ID verification registry
 - Redis-backed proposal and payment workflow state
 - x402 payment intent, verification, and settlement flow
-- XMTP browser inbox for the owner and Node worker scaffolding for the agent
+- XMTP browser inbox for the owner and a persistent Node worker for the agent
 - Vault-first dashboard for creation, bootstrap, funding, proposal review, payment, execution, withdrawal, and recovery
+- Contract deployment script and Hardhat node tests for the vault lifecycle
 
-## Important limitation
+## Why the worker exists
+
+The worker is not decorative.
+
+It is required because XMTP agent identities need:
+
+- a long-lived process to stream messages continuously
+- a persistent local XMTP database so the installation identity survives restarts
+- a single authority that can publish proposals and process approvals/rejections
+
+Vercel is excellent for the web app and short-lived API routes, but it is the wrong runtime for an always-on XMTP agent.
+
+## Important limitations
 
 This repo is now a real production-demo architecture, but it still needs deployment values for:
 
@@ -59,25 +72,49 @@ npm run lint
 npm run typecheck
 npm run contracts:compile
 npm run contracts:test
+npm run contracts:deploy:base-sepolia
 npm run worker:dev
 ```
 
 ## Deployments
 
 - `Web`: Vercel
-- `Worker`: Railway / Fly / Render
+- `Worker`: Railway (recommended), Fly.io, or Render
 - `Contracts`: Base Sepolia
 - `Redis`: Upstash or equivalent
 - `Convex`: hosted deployment
 
+### Worker hosting recommendation
+
+If you want the easiest setup, use `Railway` for the worker.
+
+Why:
+
+- easiest environment variable management
+- simple persistent volume setup for the XMTP local DB
+- easy logs and restarts
+- less operational friction than Fly for this use case
+
+Free hosting is the hard part: truly persistent background workers with disk are rarely free in a reliable way.
+
+If you need the most realistic cheap path:
+
+- `Vercel` for web
+- `Railway` for worker
+- `Upstash` for Redis
+- `Convex` hosted
+
+That is the highest signal-to-effort deployment setup for this repo.
+
 ## Suggested rollout order
 
 1. Deploy contracts to Base Sepolia
-2. Populate the public contract env vars
-3. Set the Cerberus signer private key and RPC URL
+2. Copy the printed factory and adapter addresses into your public env vars
+3. Set the Cerberus signer private key and Base Sepolia RPC URL
 4. Set World ID and Redis env vars
 5. Start the XMTP worker with persistent storage
-6. Deploy the web app
+6. Deploy the web app to Vercel
+7. Confirm the worker inbox address matches `NEXT_PUBLIC_XMTP_AGENT_ADDRESS`
 
 ## Verification checklist
 
@@ -93,3 +130,15 @@ npm run worker:dev
 - Complete World ID verification
 - Complete x402 payment
 - Execute through the vault
+
+## x402 payment networks
+
+`base-sepolia` is fully implemented now.
+
+`world` is supported by the architecture and the EVM gateway abstraction, but it only becomes active when you provide a World-compatible facilitator.
+
+That means:
+
+- the app no longer hardcodes a fake `world` path
+- the app will use `world` when the proper facilitator env vars are configured
+- otherwise it safely operates with `base-sepolia` only

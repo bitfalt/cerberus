@@ -12,7 +12,8 @@
     "worker:dev": "tsx watch services/agent-worker/index.ts",
     "worker:start": "tsx services/agent-worker/index.ts",
     "contracts:compile": "hardhat compile",
-    "contracts:test": "hardhat test"
+    "contracts:test": "hardhat test nodejs",
+    "contracts:deploy:base-sepolia": "hardhat run contracts/scripts/deploy-base-sepolia.ts --network baseSepolia"
   },
   "dependencies": {
     "@coinbase/agentkit": "^0.10.4",
@@ -44,6 +45,9 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-verify": "^3.0.6",
     "@nomicfoundation/hardhat-viem": "^3.0.1",
+    "@nomicfoundation/hardhat-viem-assertions": "^3.0.1",
+    "@nomicfoundation/hardhat-node-test-runner": "^3.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^3.0.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
