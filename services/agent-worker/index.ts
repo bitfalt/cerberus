@@ -1,6 +1,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { randomUUID } from "node:crypto";
 import { Client, type DecodedMessage, type Identifier, type Signer } from "@xmtp/node-sdk";
+import { createAgentBookVerifier } from "@worldcoin/agentkit";
 import { hexToBytes, toBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { getWorkerEnv } from "../../src/lib/server-env";
@@ -14,6 +15,29 @@ import { encodeExecutionCalldata } from "../../src/lib/quotes/base-mainnet-unisw
 import type { BaseMainnetQuote } from "../../src/lib/quotes/base-mainnet-uniswap";
 import { buildOpportunityProposal } from "../../src/lib/proposals/build-opportunity-proposal";
 import { buildAgentkitSignMessage, buildSignedAgentkitHeader } from "../../src/lib/agentkit-signing";
+
+const agentBook = createAgentBookVerifier();
+
+function serializeThrowable(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error && typeof error === "object") {
+    const maybeMessage = Reflect.get(error, "message");
+    if (typeof maybeMessage === "string") {
+      return maybeMessage;
+    }
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
+}
 
 function createSigner(): Signer {
   const workerEnv = getWorkerEnv();
@@ -47,9 +71,26 @@ function getAppBaseUrl() {
   return url.replace(/\/$/, "");
 }
 
+async function lookupWorkerHumanId() {
+  return await agentBook.lookupHuman(getWorkerWalletAddress(), "eip155:8453");
+}
+
 async function fetchProtectedQuote() {
   const signerAccount = privateKeyToAccount(getWorkerEnv().XMTP_WALLET_KEY as `0x${string}`);
   const resourceUrl = `${getAppBaseUrl()}/api/agent/premium-quote`;
+
+  const humanId = await lookupWorkerHumanId();
+  if (!humanId) {
+    throw new Error(
+      `Worker wallet ${signerAccount.address.toLowerCase()} is not registered in World AgentBook. Run: npx @worldcoin/agentkit-cli register ${signerAccount.address}`
+    );
+  }
+
+  log("info", "worker.agentkit.preflight", {
+    wallet: signerAccount.address.toLowerCase(),
+    humanId,
+    resourceUrl,
+  });
 
   const initial = await fetch(resourceUrl, {
     headers: {
@@ -59,6 +100,7 @@ async function fetchProtectedQuote() {
 
   if (initial.ok) {
     const payload = (await initial.json()) as { quote: BaseMainnetQuote };
+    log("info", "worker.agentkit.quote_unprotected", { resourceUrl });
     return payload.quote;
   }
 
@@ -92,6 +134,12 @@ async function fetchProtectedQuote() {
     throw new Error("Premium quote endpoint did not return an AgentKit challenge.");
   }
 
+  log("info", "worker.agentkit.challenge_received", {
+    resourceUrl,
+    supportedChains: agentkitChallenge.supportedChains,
+    nonce: agentkitChallenge.info.nonce,
+  });
+
   const signMessage = buildAgentkitSignMessage({
     challenge: agentkitChallenge,
     address: signerAccount.address,
@@ -114,12 +162,16 @@ async function fetchProtectedQuote() {
     const payload = await authenticated.json().catch(() => ({ error: `Authenticated quote request failed with status ${authenticated.status}` }));
     const hint =
       authenticated.status === 402
-        ? "Ensure the worker wallet is registered in World AgentBook and the worker is signing the challenge on the same XMTP/AgentKit identity."
+        ? "The worker wallet is registered, so a repeated 402 likely means the AgentKit signature payload does not match what the route expects."
         : "";
     throw new Error([payload.error ?? `Authenticated quote request failed with status ${authenticated.status}`, hint].filter(Boolean).join(" "));
   }
 
   const payload = (await authenticated.json()) as { quote: BaseMainnetQuote };
+  log("info", "worker.agentkit.quote_authenticated", {
+    resourceUrl,
+    quoteHash: payload.quote.quoteHash,
+  });
   return payload.quote;
 }
 
@@ -246,12 +298,12 @@ async function processQueuedScans() {
   } catch (error) {
     await updateScanRequest(scanRequest.scanRequestId, {
       status: "failed",
-      error: error instanceof Error ? error.message : "Unknown scan error",
+      error: serializeThrowable(error),
     });
     log("error", "worker.scan.failed", {
       scanRequestId: scanRequest.scanRequestId,
       wallet: scanRequest.wallet,
-      error: error instanceof Error ? error.message : "Unknown scan error",
+      error: serializeThrowable(error),
     });
   }
 }

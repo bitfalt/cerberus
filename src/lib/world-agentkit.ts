@@ -65,7 +65,7 @@ const storage = new RedisAgentKitStorage();
 const hooks = createAgentkitHooks({
   agentBook,
   storage,
-  mode: { type: "free-trial", uses: 3 },
+  mode: { type: "free" },
   rpcUrl: baseMainnetRpcUrl,
   onEvent: (event) => {
     log("info", "world-agentkit.event", event as unknown as Record<string, unknown>);
@@ -123,7 +123,7 @@ export async function buildAgentkitChallenge(request: Request) {
     resourceUri: resourceUrl,
     network: "eip155:8453",
     expirationSeconds: 300,
-    mode: { type: "free-trial", uses: 3 },
+    mode: { type: "free" },
   });
 
   const enriched = await agentkitResourceServerExtension.enrichPaymentRequiredResponse?.(declaration[AGENTKIT], {
