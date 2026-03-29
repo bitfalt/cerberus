@@ -6,17 +6,54 @@
   },
   "steps": {
     "install": {
+      "inputs": [
+        {
+          "local": true,
+          "include": [
+            "."
+          ]
+        }
+      ],
       "commands": [
         "npm ci"
+      ],
+      "deployOutputs": [
+        {
+          "include": [
+            "."
+          ]
+        }
       ]
     },
     "build": {
+      "inputs": [
+        {
+          "step": "install",
+          "include": [
+            "."
+          ]
+        }
+      ],
       "commands": [
         "node -e \"console.log('Skipping web build for Railway worker service')\""
       ]
     }
   },
   "deploy": {
+    "inputs": [
+      {
+        "step": "install",
+        "include": [
+          "."
+        ]
+      },
+      {
+        "step": "build",
+        "include": [
+          "."
+        ]
+      }
+    ],
     "startCommand": "npm run worker:start"
   }
 }
