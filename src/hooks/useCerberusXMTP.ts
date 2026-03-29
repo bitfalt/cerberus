@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { hexToBytes } from 'viem';
 import { useWalletClient } from 'wagmi';
 import { publicEnv } from '@/lib/public-env';
@@ -34,6 +34,8 @@ export function useCerberusXMTP() {
   const [messages, setMessages] = useState<XMTPViewMessage[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [agentInboxId, setAgentInboxId] = useState<string | null>(null);
+  const [agentReachable, setAgentReachable] = useState<boolean | null>(null);
 
   const agentAddress = publicEnv.NEXT_PUBLIC_XMTP_AGENT_ADDRESS;
 
@@ -67,15 +69,29 @@ export function useCerberusXMTP() {
         },
       };
 
-      const backend = await xmtp.createBackend({
+      const xmtpClient = await xmtp.Client.create(signer, {
         env: publicEnv.NEXT_PUBLIC_XMTP_ENV,
         appVersion: 'cerberus/1.0.0',
-      });
-      const xmtpClient = await xmtp.Client.create(signer, {
-        backend,
       } as unknown as Parameters<typeof xmtp.Client.create>[1]);
 
       await xmtpClient.conversations.syncAll();
+      const agentIdentifier: BrowserIdentifier = {
+        identifier: agentAddress.toLowerCase(),
+        identifierKind: 0,
+      };
+      const canMessage = await xmtpClient.canMessage([agentIdentifier]);
+      const reachable = canMessage.get(agentAddress.toLowerCase()) ?? false;
+      const inboxId = await xmtpClient.fetchInboxIdByIdentifier(agentIdentifier);
+
+      setAgentReachable(reachable);
+      setAgentInboxId(inboxId ?? null);
+
+      if (!reachable || !inboxId) {
+        throw new Error(
+          `The configured XMTP agent wallet (${agentAddress}) is not registered or reachable on the ${publicEnv.NEXT_PUBLIC_XMTP_ENV} XMTP network.`
+        );
+      }
+
       const dm = await xmtpClient.conversations.createDmWithIdentifier({
         identifier: agentAddress.toLowerCase(),
         identifierKind: 0,
@@ -131,8 +147,6 @@ export function useCerberusXMTP() {
     [conversation, refreshMessages]
   );
 
-  const agentInboxId = useMemo(() => null, []);
-
   return {
     client,
     conversation,
@@ -141,6 +155,7 @@ export function useCerberusXMTP() {
     error,
     agentAddress,
     agentInboxId,
+    agentReachable,
     connect,
     refreshMessages,
     sendJsonMessage,

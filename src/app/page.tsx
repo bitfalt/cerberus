@@ -62,6 +62,27 @@ type VaultStatus = {
   balances: { eth: string; usdc: string };
 };
 
+type HealthStatus = {
+  ok: boolean;
+  redis?: { ok: boolean };
+  worker?: {
+    seen: boolean;
+    stale: boolean;
+    ageMs: number | null;
+    heartbeat?: {
+      inboxId: string;
+      walletAddress: string;
+      env: string;
+      timestamp: number;
+    } | null;
+  };
+  xmtp?: {
+    env: string;
+    agentAddressConfigured: boolean;
+  };
+  error?: string;
+};
+
 function currentTimestamp() {
   return Date.now();
 }
@@ -80,6 +101,7 @@ export default function Home() {
   const [scanStatus, setScanStatus] = useState<string | null>(null);
   const [bootstrapStatus, setBootstrapStatus] = useState<string | null>(null);
   const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
+  const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
   const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [verificationSignals, setVerificationSignals] = useState<Record<string, string>>({});
   const [actionNonce, setActionNonce] = useState<Record<string, string>>({});
@@ -136,6 +158,12 @@ export default function Home() {
     }
   }, [activeVault]);
 
+  const refreshHealthStatus = useCallback(async () => {
+    const response = await fetch('/api/health');
+    const payload = await response.json();
+    setHealthStatus(payload);
+  }, []);
+
   useEffect(() => {
     if (!address) return;
     const timeout = window.setTimeout(() => {
@@ -157,10 +185,18 @@ export default function Home() {
     const timer = window.setInterval(() => {
       void refreshProposals();
       void refreshVaultStatus();
+      void refreshHealthStatus();
       void xmtp.refreshMessages();
     }, 15_000);
     return () => window.clearInterval(timer);
-  }, [address, activeVault, refreshProposals, refreshVaultStatus, xmtp]);
+  }, [address, activeVault, refreshHealthStatus, refreshProposals, refreshVaultStatus, xmtp]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void refreshHealthStatus();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [refreshHealthStatus]);
 
   const createVault = async () => {
     if (!recoveryAddress) {
@@ -461,6 +497,7 @@ export default function Home() {
                 <span className="rounded-full border border-white/10 px-3 py-1">x402 default: {defaultPaymentNetwork}</span>
                 <span className="rounded-full border border-white/10 px-3 py-1">World ID v4</span>
                 <span className="rounded-full border border-white/10 px-3 py-1">XMTP real agent path</span>
+                <span className="rounded-full border border-white/10 px-3 py-1">Worker: {healthStatus?.worker?.seen ? (healthStatus.worker.stale ? 'stale' : 'online') : 'missing'}</span>
               </div>
             </div>
           </div>
@@ -473,6 +510,23 @@ export default function Home() {
         ) : (
           <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
             <section className="space-y-6">
+              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
+                <h2 className="text-lg font-semibold text-white">System health</h2>
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <Metric label="Redis" value={healthStatus?.redis?.ok ? 'Connected' : 'Unavailable'} />
+                  <Metric label="Worker" value={healthStatus?.worker?.seen ? (healthStatus.worker.stale ? 'Stale' : 'Healthy') : 'No heartbeat'} />
+                  <Metric label="XMTP env" value={healthStatus?.xmtp?.env ?? 'unknown'} />
+                </div>
+                {healthStatus?.worker?.heartbeat ? (
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">
+                    <p>Worker inbox: {healthStatus.worker.heartbeat.inboxId}</p>
+                    <p className="mt-1 break-all">Worker wallet: {healthStatus.worker.heartbeat.walletAddress}</p>
+                    <p className="mt-1">Last heartbeat: {new Date(healthStatus.worker.heartbeat.timestamp).toLocaleString()}</p>
+                  </div>
+                ) : null}
+                {healthStatus?.error ? <p className="mt-3 text-sm text-rose-300">{healthStatus.error}</p> : null}
+              </div>
+
               <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
                 <h2 className="text-lg font-semibold text-white">Vault setup</h2>
                 <p className="mt-1 text-sm text-slate-400">Deploy one governed vault per owner. All outflows require Cerberus authorization.</p>
@@ -538,6 +592,8 @@ export default function Home() {
                 {xmtp.error ? <p className="mt-2 text-xs text-rose-300">{xmtp.error}</p> : null}
                 <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">
                   <p>Agent address: {xmtp.agentAddress}</p>
+                  <p className="mt-1">Agent reachable: {xmtp.agentReachable === null ? 'unknown' : xmtp.agentReachable ? 'yes' : 'no'}</p>
+                  <p className="mt-1">Agent inbox: {xmtp.agentInboxId ?? 'unknown'}</p>
                   <p className="mt-1">Messages synced: {xmtp.messages.length}</p>
                 </div>
               </div>

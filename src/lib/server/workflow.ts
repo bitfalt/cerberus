@@ -36,6 +36,13 @@ export type ScanRequest = {
   createdProposalIds?: string[];
 };
 
+export type WorkerHeartbeat = {
+  inboxId: string;
+  walletAddress: string;
+  env: string;
+  timestamp: number;
+};
+
 export type ProposalRecord = {
   proposal: Proposal;
   proposalHash: string;
@@ -82,6 +89,8 @@ function scanRequestKey(scanRequestId: string) {
 function walletScanIndex(wallet: string) {
   return `scanRequestIndex:wallet:${wallet.toLowerCase()}`;
 }
+
+const WORKER_HEARTBEAT_KEY = "worker:heartbeat";
 
 export async function createProposalRecord(record: ProposalRecord) {
   const ttlSeconds = Math.floor(TTL_MS.proposal / 1000);
@@ -142,6 +151,15 @@ export async function listScanRequestsByWallet(wallet: string) {
   const ids = await getRedis().smembers(walletScanIndex(wallet));
   const requests = await Promise.all(ids.map((id) => getScanRequest(id)));
   return requests.filter((request): request is ScanRequest => request !== null).sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export async function setWorkerHeartbeat(heartbeat: WorkerHeartbeat) {
+  await setJson(WORKER_HEARTBEAT_KEY, heartbeat, 120);
+  return heartbeat;
+}
+
+export async function getWorkerHeartbeat() {
+  return await getJson<WorkerHeartbeat>(WORKER_HEARTBEAT_KEY);
 }
 
 export async function listProposalRecordsByWallet(wallet: string) {

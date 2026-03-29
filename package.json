@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "typecheck": "next typegen && tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "worker:dev": "tsx watch services/agent-worker/index.ts",
     "worker:start": "tsx services/agent-worker/index.ts",
     "contracts:compile": "hardhat compile",

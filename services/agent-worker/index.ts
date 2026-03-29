@@ -1,11 +1,11 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { randomUUID } from "node:crypto";
-import { Client, createBackend, type DecodedMessage, type Identifier, type Signer } from "@xmtp/node-sdk";
+import { Client, type DecodedMessage, type Identifier, type Signer } from "@xmtp/node-sdk";
 import { hexToBytes, toBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { getWorkerEnv } from "../../src/lib/server-env";
 import { log } from "../../src/lib/server/logger";
-import { createProposalRecord, dequeueScanRequest, listAllProposalRecords, updateProposalRecord, updateScanRequest } from "../../src/lib/server/workflow";
+import { createProposalRecord, dequeueScanRequest, listAllProposalRecords, setWorkerHeartbeat, updateProposalRecord, updateScanRequest } from "../../src/lib/server/workflow";
 import { serializeXMTPMessage } from "../../src/lib/protocol/messages";
 import { generateProposalAnalysis } from "../../src/lib/agentkit/agent";
 import { hashProposal } from "../../src/lib/protocol/hash";
@@ -31,12 +31,16 @@ function createSigner(): Signer {
   };
 }
 
+function getWorkerWalletAddress() {
+  const workerEnv = getWorkerEnv();
+  return privateKeyToAccount(workerEnv.XMTP_WALLET_KEY as `0x${string}`).address.toLowerCase();
+}
+
 async function createClient() {
   const workerEnv = getWorkerEnv();
   const signer = createSigner();
-  const backend = await createBackend({ env: workerEnv.XMTP_ENV });
   const client = await Client.create(signer, {
-    backend,
+    env: workerEnv.XMTP_ENV,
     appVersion: "cerberus/1.0.0",
     dbPath: workerEnv.XMTP_DB_PATH,
     dbEncryptionKey: hexToBytes(workerEnv.XMTP_DB_ENCRYPTION_KEY as `0x${string}`),
@@ -216,14 +220,28 @@ async function streamMessages(client: Client<unknown>) {
 
 async function main() {
   const client = await createClient();
+  const workerEnv = getWorkerEnv();
   log("info", "worker.started", {
     inboxId: client.inboxId,
+  });
+
+  await setWorkerHeartbeat({
+    inboxId: client.inboxId,
+    walletAddress: getWorkerWalletAddress(),
+    env: workerEnv.XMTP_ENV,
+    timestamp: Date.now(),
   });
 
   void streamMessages(client);
 
   while (true) {
     try {
+      await setWorkerHeartbeat({
+        inboxId: client.inboxId,
+        walletAddress: getWorkerWalletAddress(),
+        env: workerEnv.XMTP_ENV,
+        timestamp: Date.now(),
+      });
       await processQueuedScans();
       await publishPendingProposals(client);
     } catch (error) {
