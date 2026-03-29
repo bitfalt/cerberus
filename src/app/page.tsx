@@ -945,7 +945,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 overflow-x-hidden">
         {!isConnected ? (
           <EmptyState
             icon={Icons.Wallet}
@@ -1315,7 +1315,7 @@ export default function Home() {
             </section>
 
             {/* Main Content */}
-            <section className="space-y-5">
+            <section className="space-y-5 min-w-0">
               {/* Agent Proposals Header */}
               <div className="glass-panel p-5">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -1358,7 +1358,7 @@ export default function Home() {
               </div>
 
               {/* Proposals List */}
-              <div className="space-y-4">
+              <div className="space-y-4 max-w-full overflow-x-hidden">
                 {loadingProposals ? (
                   <>
                     <SkeletonCard />
