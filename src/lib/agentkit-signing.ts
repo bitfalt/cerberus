@@ -36,7 +36,7 @@ export function buildSignedAgentkitHeader(input: {
 
   return encodeAgentkitHeader({
     ...input.challenge.info,
-    address: input.address.toLowerCase(),
+    address: input.address,
     chainId: supportedChain.chainId,
     type: supportedChain.type,
     signatureScheme: "eip191",
@@ -55,6 +55,6 @@ export function buildAgentkitSignMessage(input: {
       type: "eip191",
       signatureScheme: "eip191",
     },
-    input.address.toLowerCase()
+    input.address
   );
 }

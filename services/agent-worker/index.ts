@@ -43,7 +43,7 @@ function createSigner(): Signer {
   const workerEnv = getWorkerEnv();
   const account = privateKeyToAccount(workerEnv.XMTP_WALLET_KEY as `0x${string}`);
   const identifier: Identifier = {
-    identifier: account.address.toLowerCase(),
+    identifier: account.address,
     identifierKind: 0,
   };
 
@@ -59,7 +59,7 @@ function createSigner(): Signer {
 
 function getWorkerWalletAddress() {
   const workerEnv = getWorkerEnv();
-  return privateKeyToAccount(workerEnv.XMTP_WALLET_KEY as `0x${string}`).address.toLowerCase();
+  return privateKeyToAccount(workerEnv.XMTP_WALLET_KEY as `0x${string}`).address;
 }
 
 function getAppBaseUrl() {
@@ -87,7 +87,7 @@ async function fetchProtectedQuote() {
   }
 
   log("info", "worker.agentkit.preflight", {
-    wallet: signerAccount.address.toLowerCase(),
+    wallet: signerAccount.address,
     humanId,
     resourceUrl,
   });
