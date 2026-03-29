@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "node",
+  "packages": {
+    "node": "22"
+  },
+  "steps": {
+    "install": {
+      "commands": [
+        "npm ci"
+      ]
+    },
+    "build": {
+      "commands": [
+        "node -e \"console.log('Skipping web build for Railway worker service')\""
+      ]
+    }
+  },
+  "deploy": {
+    "startCommand": "npm run worker:start"
+  }
+}
