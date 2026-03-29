@@ -1,5 +1,3 @@
-import "server-only";
-
 import type { Proposal, PaymentIntent } from "@/lib/protocol/schemas";
 import { TTL_MS } from "@/lib/protocol/constants";
 import { deleteKeys, getJson, setIfNotExists, setJson } from "./redis";

@@ -1,5 +1,3 @@
-import "server-only";
-
 import type { Proposal } from "@/lib/protocol/schemas";
 import { quoteProposalAnalysis } from "./formatting";
 import type { BaseMainnetQuote } from "@/lib/quotes/base-mainnet-uniswap";

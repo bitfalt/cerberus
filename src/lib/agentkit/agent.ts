@@ -1,5 +1,3 @@
-import "server-only";
-
 import { AgentKit, CdpEvmWalletProvider, walletActionProvider } from "@coinbase/agentkit";
 import { getLangChainTools } from "@coinbase/agentkit-langchain";
 import { HumanMessage } from "@langchain/core/messages";

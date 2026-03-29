@@ -1,5 +1,3 @@
-import "server-only";
-
 type LogLevel = "info" | "warn" | "error";
 
 export function log(level: LogLevel, event: string, metadata?: Record<string, unknown>) {
