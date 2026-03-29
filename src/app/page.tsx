@@ -83,6 +83,8 @@ type HealthStatus = {
   error?: string;
 };
 
+type TabType = 'overview' | 'vault' | 'actions';
+
 function currentTimestamp() {
   return Date.now();
 }
@@ -241,6 +243,33 @@ const Icons = {
       <path d="M7 11V7a5 5 0 0 1 9.9-1" />
     </svg>
   ),
+  LayoutDashboard: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="7" height="9" x="3" y="3" rx="1" />
+      <rect width="7" height="5" x="14" y="3" rx="1" />
+      <rect width="7" height="9" x="14" y="12" rx="1" />
+      <rect width="7" height="5" x="3" y="16" rx="1" />
+    </svg>
+  ),
+  Vault: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="M12 12h.01" />
+      <path d="M8 12h.01" />
+      <path d="M16 12h.01" />
+    </svg>
+  ),
+  Zap: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  ),
+  TrendingUp: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  ),
 };
 
 // Skeleton Components
@@ -322,14 +351,14 @@ function SectionHeader({
   };
 
   return (
-    <div className="flex items-start justify-between gap-4 mb-5">
+    <div className="flex items-start justify-between gap-4 mb-4">
       <div className="flex items-start gap-3">
         <div className={iconVariants[variant]}>
           <Icon className="w-5 h-5" />
         </div>
         <div>
           <h2 className="section-title">{title}</h2>
-          {description && <p className="section-description mt-1">{description}</p>}
+          {description && <p className="section-description mt-0.5">{description}</p>}
         </div>
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
@@ -338,16 +367,22 @@ function SectionHeader({
 }
 
 // Metric Card Component
-function MetricCard({ label, value, icon: Icon, loading = false }: { label: string; value: string; icon?: React.ComponentType<{ className?: string }>; loading?: boolean }) {
+function MetricCard({ label, value, icon: Icon, loading = false, variant = 'default' }: { label: string; value: string; icon?: React.ComponentType<{ className?: string }>; loading?: boolean; variant?: 'default' | 'blue' | 'green' }) {
   if (loading) return <SkeletonMetric />;
 
+  const valueClasses = {
+    default: 'text-slate-100',
+    blue: 'text-sky-400',
+    green: 'text-emerald-400',
+  };
+
   return (
-    <div className="glass-panel glass-elevated p-4 transition-all duration-200 hover:-translate-y-0.5">
+    <div className="glass-panel glass-elevated p-4 hover-lift transition-all duration-200">
       <div className="flex items-center gap-2 mb-2">
         {Icon && <Icon className="w-4 h-4 text-slate-500" />}
         <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">{label}</p>
       </div>
-      <p className="text-lg font-semibold text-slate-100">{value}</p>
+      <p className={`text-lg font-semibold ${valueClasses[variant]}`}>{value}</p>
     </div>
   );
 }
@@ -392,6 +427,7 @@ export default function Home() {
   const { writeContractAsync } = useWriteContract();
   const { signTypedDataAsync } = useSignTypedData();
 
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [recoveryAddress, setRecoveryAddress] = useState<string>('');
   const [depositAmount, setDepositAmount] = useState('0.01');
   const [withdrawAmount, setWithdrawAmount] = useState('0.001');
@@ -407,8 +443,6 @@ export default function Home() {
   const [withdrawSignalHash, setWithdrawSignalHash] = useState<string | null>(null);
   const [withdrawNonce, setWithdrawNonce] = useState<string>(() => crypto.randomUUID());
   const [recoveryNonce, setRecoveryNonce] = useState<string>(() => crypto.randomUUID());
-  
-  // New state for collapsible proposals
   const [expandedProposals, setExpandedProposals] = useState<Set<string>>(new Set());
   const [loadingProposals, setLoadingProposals] = useState(true);
   const [loadingVault, setLoadingVault] = useState(true);
@@ -519,7 +553,6 @@ export default function Home() {
     return () => window.clearTimeout(timeout);
   }, [refreshHealthStatus]);
 
-  // Toggle proposal expansion
   const toggleProposal = (id: string) => {
     setExpandedProposals(prev => {
       const next = new Set(prev);
@@ -529,7 +562,6 @@ export default function Home() {
     });
   };
 
-  // Helper to determine proposal status type
   const getProposalStatusType = (status: string): 'default' | 'success' | 'warning' | 'error' | 'info' => {
     const s = status.toLowerCase();
     if (s.includes('executed') || s.includes('confirmed')) return 'success';
@@ -832,17 +864,28 @@ export default function Home() {
     setRecoveryNonce(crypto.randomUUID());
   };
 
+  // Tab configuration
+  const tabs = [
+    { id: 'overview' as TabType, label: 'Overview', icon: Icons.LayoutDashboard },
+    { id: 'vault' as TabType, label: 'Vault', icon: Icons.Vault },
+    { id: 'actions' as TabType, label: 'Actions', icon: Icons.Zap },
+  ];
+
   return (
     <main className="min-h-screen pb-12">
+      {/* Animated Background Orbs */}
+      <div className="animated-bg-orb animated-bg-orb-1" />
+      <div className="animated-bg-orb animated-bg-orb-2" />
+      <div className="animated-bg-orb animated-bg-orb-3" />
+
       {/* Hero Section */}
       <div className="relative overflow-hidden">
-        {/* Background gradients */}
         <div className="absolute inset-0 bg-gradient-to-br from-sky-950/30 via-slate-950/90 to-slate-950" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(14,165,233,0.12),transparent_50%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(139,92,246,0.06),transparent_40%)]" />
         
         <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="glass-panel glass-elevated glass-blue p-6 sm:p-8">
+          <div className="glass-panel glass-elevated glass-blue p-6 sm:p-8 glow-blue">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="max-w-2xl space-y-4">
                 <div className="flex items-center gap-3">
@@ -855,7 +898,7 @@ export default function Home() {
                 </div>
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight">
                   Real Base market discovery
-                  <span className="block text-sky-400">with governed execution</span>
+                  <span className="block gradient-text">with governed execution</span>
                 </h1>
                 <p className="text-base text-slate-400 max-w-xl leading-relaxed">
                   Cerberus scans real Base Mainnet liquidity for opportunities, then runs the approval, 
@@ -897,314 +940,362 @@ export default function Home() {
             description="Connect a wallet to create a governed vault, link to the XMTP agent, and run the full World ID + x402 + on-chain authorization flow."
           />
         ) : (
-          <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-            {/* Left Sidebar */}
-            <section className="space-y-5">
-              {/* System Health */}
-              <div className="glass-panel glass-blue p-5">
-                <SectionHeader
-                  icon={Icons.Activity}
-                  title="System Health"
-                  description="Real-time infrastructure monitoring"
-                  variant="blue"
-                />
-                
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <HealthIndicator 
-                    label="Redis" 
-                    status={healthStatus?.redis?.ok ? 'online' : healthStatus?.redis ? 'offline' : 'unknown'} 
-                  />
-                  <HealthIndicator 
-                    label="Worker" 
-                    status={healthStatus?.worker?.seen ? (healthStatus.worker.stale ? 'stale' : 'online') : 'offline'} 
-                  />
-                  <HealthIndicator 
-                    label="XMTP" 
-                    status={healthStatus?.xmtp?.env ? 'online' : 'unknown'} 
-                  />
-                </div>
+          <div className="main-layout">
+            {/* Left Sidebar with Tabs */}
+            <section className="space-y-4">
+              {/* Tab Navigation */}
+              <div className="tab-container">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-                {healthStatus?.worker?.heartbeat && (
-                  <div className="glass-panel glass-elevated p-3 text-xs space-y-1.5">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Icons.MessageSquare className="w-3 h-3" />
-                      <span className="font-mono text-slate-400 truncate">{healthStatus.worker.heartbeat.inboxId}</span>
+              {/* Tab Content */}
+              <div className="tab-content active">
+                {activeTab === 'overview' && (
+                  <div className="space-y-4 fade-in">
+                    {/* System Health */}
+                    <div className="glass-panel glass-blue p-5">
+                      <SectionHeader
+                        icon={Icons.Activity}
+                        title="System Health"
+                        description="Real-time infrastructure monitoring"
+                        variant="blue"
+                      />
+                      
+                      <div className="card-grid-3 gap-2 mb-4">
+                        <HealthIndicator 
+                          label="Redis" 
+                          status={healthStatus?.redis?.ok ? 'online' : healthStatus?.redis ? 'offline' : 'unknown'} 
+                        />
+                        <HealthIndicator 
+                          label="Worker" 
+                          status={healthStatus?.worker?.seen ? (healthStatus.worker.stale ? 'stale' : 'online') : 'offline'} 
+                        />
+                        <HealthIndicator 
+                          label="XMTP" 
+                          status={healthStatus?.xmtp?.env ? 'online' : 'unknown'} 
+                        />
+                      </div>
+
+                      {healthStatus?.worker?.heartbeat && (
+                        <div className="glass-panel glass-elevated p-3 text-xs space-y-1.5">
+                          <div className="flex items-center gap-2 text-slate-500">
+                            <Icons.MessageSquare className="w-3 h-3" />
+                            <span className="font-mono text-slate-400 truncate">{healthStatus.worker.heartbeat.inboxId}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-500">
+                            <Icons.Clock className="w-3 h-3" />
+                            <span>Last: {new Date(healthStatus.worker.heartbeat.timestamp).toLocaleTimeString()}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {healthStatus?.error && (
+                        <div className="mt-3 flex items-center gap-2 text-sm text-rose-400">
+                          <Icons.AlertTriangle className="w-4 h-4" />
+                          {healthStatus.error}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Icons.Clock className="w-3 h-3" />
-                      <span>Last heartbeat: {new Date(healthStatus.worker.heartbeat.timestamp).toLocaleString()}</span>
+
+                    {/* Treasury Overview */}
+                    <div className="glass-panel p-5">
+                      <SectionHeader
+                        icon={Icons.Coins}
+                        title="Treasury"
+                        description="Vault balances and funding"
+                        variant="default"
+                      />
+                      
+                      <div className="card-grid-2 gap-3 mb-4">
+                        <MetricCard 
+                          label="ETH Balance" 
+                          value={vaultStatus?.balances.eth ?? '0.0'} 
+                          icon={Icons.Coins}
+                          loading={loadingVault}
+                          variant="blue"
+                        />
+                        <MetricCard 
+                          label="USDC Balance" 
+                          value={vaultStatus?.balances.usdc ?? '0.0'} 
+                          icon={Icons.Coins}
+                          loading={loadingVault}
+                          variant="green"
+                        />
+                      </div>
+
+                      <div className="glass-panel glass-elevated p-3 text-xs space-y-2">
+                        <div className="info-row">
+                          <span className="info-row-label">Connected Wallet USDC</span>
+                          <span className="text-slate-300">{formatUnits(BigInt(userUsdcBalance ?? BigInt(0)), 6)} USDC</span>
+                        </div>
+                        <div className="text-slate-500 text-[10px] leading-tight">
+                          x402 fees are paid by the connected wallet. Fund with Base Sepolia USDC.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* XMTP Status */}
+                    <div className="glass-panel glass-violet p-5">
+                      <SectionHeader
+                        icon={Icons.MessageSquare}
+                        title="XMTP Control"
+                        description="Connect to the persistent agent inbox"
+                        variant="violet"
+                      />
+                      
+                      <button 
+                        onClick={connectXmtp} 
+                        className={`glass-button w-full ${xmtp.client ? 'glass-button-success' : 'glass-button-primary'}`}
+                      >
+                        {xmtp.client ? (
+                          <>
+                            <Icons.CheckCircle className="w-4 h-4" />
+                            XMTP Connected
+                          </>
+                        ) : (
+                          <>
+                            <Icons.MessageSquare className="w-4 h-4" />
+                            Connect XMTP
+                          </>
+                        )}
+                      </button>
+
+                      {xmtp.error && (
+                        <div className="mt-3 flex items-center gap-2 text-sm text-rose-400">
+                          <Icons.AlertTriangle className="w-4 h-4" />
+                          {xmtp.error}
+                        </div>
+                      )}
+
+                      <div className="mt-4 glass-panel glass-elevated p-3 space-y-2 text-xs">
+                        <div className="info-row">
+                          <span className="info-row-label">Agent</span>
+                          <span className="info-row-value">{xmtp.agentAddress}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-row-label">Reachable</span>
+                          <span className={`${xmtp.agentReachable ? 'text-emerald-400' : xmtp.agentReachable === null ? 'text-slate-500' : 'text-rose-400'}`}>
+                            {xmtp.agentReachable === null ? 'Unknown' : xmtp.agentReachable ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-row-label">Messages</span>
+                          <span className="badge badge-blue">{xmtp.messages.length}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {healthStatus?.error && (
-                  <div className="mt-3 flex items-center gap-2 text-sm text-rose-400">
-                    <Icons.AlertTriangle className="w-4 h-4" />
-                    {healthStatus.error}
-                  </div>
-                )}
-              </div>
+                {activeTab === 'vault' && (
+                  <div className="space-y-4 fade-in">
+                    {/* Vault Setup */}
+                    <div className="glass-panel p-5">
+                      <SectionHeader
+                        icon={Icons.Lock}
+                        title="Vault Setup"
+                        description="Deploy one governed vault per owner"
+                        variant="default"
+                      />
+                      
+                      <div className="space-y-3">
+                        <input
+                          value={recoveryAddress}
+                          onChange={(e) => setRecoveryAddress(e.target.value)}
+                          placeholder="Recovery address (0x...)"
+                          className="glass-input"
+                        />
+                        
+                        <button 
+                          onClick={createVault} 
+                          disabled={!!activeVault}
+                          className={`glass-button w-full ${activeVault ? 'glass-button-success' : 'glass-button-primary'}`}
+                        >
+                          {activeVault ? (
+                            <>
+                              <Icons.CheckCircle className="w-4 h-4" />
+                              Vault Deployed
+                            </>
+                          ) : (
+                            <>
+                              <Icons.Shield className="w-4 h-4" />
+                              Create Governed Vault
+                            </>
+                          )}
+                        </button>
+                        
+                        {activeVault && (
+                          <button 
+                            onClick={bootstrapVault} 
+                            className="glass-button w-full"
+                          >
+                            <Icons.Sparkles className="w-4 h-4" />
+                            Bootstrap Allowlists
+                          </button>
+                        )}
+                        
+                        {bootstrapStatus && (
+                          <div className="flex items-center gap-2 text-sm text-sky-400 p-2 rounded-lg bg-sky-950/30 border border-sky-500/20">
+                            <Icons.Activity className="w-4 h-4" />
+                            {bootstrapStatus}
+                          </div>
+                        )}
+                      </div>
 
-              {/* Vault Setup */}
-              <div className="glass-panel p-5">
-                <SectionHeader
-                  icon={Icons.Lock}
-                  title="Vault Setup"
-                  description="Deploy one governed vault per owner. All outflows require Cerberus authorization."
-                  variant="default"
-                />
-                
-                <div className="space-y-3">
-                  <input
-                    value={recoveryAddress}
-                    onChange={(e) => setRecoveryAddress(e.target.value)}
-                    placeholder="Recovery address (0x...)"
-                    className="glass-input"
-                  />
-                  
-                  <button 
-                    onClick={createVault} 
-                    disabled={!!activeVault}
-                    className={`glass-button w-full ${activeVault ? 'glass-button-success' : 'glass-button-primary'}`}
-                  >
-                    {activeVault ? (
-                      <>
-                        <Icons.CheckCircle className="w-4 h-4" />
-                        Vault Deployed
-                      </>
-                    ) : (
-                      <>
-                        <Icons.Shield className="w-4 h-4" />
-                        Create Governed Vault
-                      </>
-                    )}
-                  </button>
-                  
-                  {activeVault && (
-                    <button 
-                      onClick={bootstrapVault} 
-                      className="glass-button w-full"
-                    >
-                      <Icons.Sparkles className="w-4 h-4" />
-                      Bootstrap Allowlists
-                    </button>
-                  )}
-                  
-                  {bootstrapStatus && (
-                    <div className="flex items-center gap-2 text-sm text-sky-400 p-2 rounded-lg bg-sky-950/30 border border-sky-500/20">
-                      <Icons.Activity className="w-4 h-4" />
-                      {bootstrapStatus}
+                      <div className="mt-4 glass-panel glass-elevated p-3">
+                        <div className="info-row">
+                          <span className="info-row-label">Vault Address</span>
+                        </div>
+                        <p className="font-mono text-sm text-slate-300 break-all mt-1">
+                          {activeVault || 'Not deployed yet'}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                <div className="mt-4 glass-panel glass-elevated p-3">
-                  <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-                    <Icons.Shield className="w-3 h-3" />
-                    Vault Address
-                  </div>
-                  <p className="font-mono text-sm text-slate-300 break-all">
-                    {activeVault || 'Not deployed yet'}
-                  </p>
-                </div>
-              </div>
+                    {/* Funding */}
+                    <div className="glass-panel glass-blue p-5">
+                      <SectionHeader
+                        icon={Icons.Wallet}
+                        title="Fund Vault"
+                        description="Add ETH to your governed vault"
+                        variant="blue"
+                      />
+                      
+                      <div className="space-y-3">
+                        <input
+                          value={depositAmount}
+                          onChange={(e) => setDepositAmount(e.target.value)}
+                          placeholder="Amount in ETH"
+                          className="glass-input"
+                        />
+                        <button 
+                          onClick={fundVault} 
+                          disabled={!activeVault}
+                          className="glass-button w-full glass-button-primary"
+                        >
+                          <Icons.Wallet className="w-4 h-4" />
+                          Fund Vault
+                        </button>
+                      </div>
+                    </div>
 
-              {/* Funding & Status */}
-              <div className="glass-panel p-5">
-                <SectionHeader
-                  icon={Icons.Coins}
-                  title="Treasury"
-                  description="Vault balances and funding"
-                  variant="default"
-                />
-                
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <MetricCard 
-                    label="ETH Balance" 
-                    value={vaultStatus?.balances.eth ?? '0.0'} 
-                    loading={loadingVault}
-                  />
-                  <MetricCard 
-                    label="USDC Balance" 
-                    value={vaultStatus?.balances.usdc ?? '0.0'} 
-                    loading={loadingVault}
-                  />
-                </div>
-
-                <div className="glass-panel glass-elevated p-3 mb-4 text-xs space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Connected Wallet USDC</span>
-                    <span className="text-slate-300">{formatUnits(BigInt(userUsdcBalance ?? BigInt(0)), 6)} USDC</span>
-                  </div>
-                  <div className="text-slate-500">
-                    x402 fees are paid by the connected wallet, not the vault. Fund this wallet with Base Sepolia USDC before paying the authorization fee.
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <input
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    placeholder="Amount in ETH"
-                    className="glass-input"
-                  />
-                  <button 
-                    onClick={fundVault} 
-                    disabled={!activeVault}
-                    className="glass-button w-full glass-button-primary"
-                  >
-                    <Icons.Wallet className="w-4 h-4" />
-                    Fund Vault
-                  </button>
-                </div>
-
-                <div className="mt-4 glass-panel glass-elevated p-3 space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Owner</span>
-                    <span className="font-mono text-slate-400 truncate max-w-[200px]">
-                      {vaultStatus?.owner ?? '—'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Recovery</span>
-                    <span className="font-mono text-slate-400 truncate max-w-[200px]">
-                      {vaultStatus?.recoveryAddress ?? '—'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Status</span>
-                    <span className={`badge ${vaultStatus?.paused ? 'badge-rose' : 'badge-green'}`}>
-                      {vaultStatus?.paused ? 'Paused' : 'Active'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* XMTP Control */}
-              <div className="glass-panel glass-violet p-5">
-                <SectionHeader
-                  icon={Icons.MessageSquare}
-                  title="XMTP Control"
-                  description="Connect to the persistent agent inbox"
-                  variant="violet"
-                />
-                
-                <button 
-                  onClick={connectXmtp} 
-                  className={`glass-button w-full ${xmtp.client ? 'glass-button-success' : 'glass-button-primary'}`}
-                >
-                  {xmtp.client ? (
-                    <>
-                      <Icons.CheckCircle className="w-4 h-4" />
-                      XMTP Connected
-                    </>
-                  ) : (
-                    <>
-                      <Icons.MessageSquare className="w-4 h-4" />
-                      Connect XMTP
-                    </>
-                  )}
-                </button>
-
-                {xmtp.error && (
-                  <div className="mt-3 flex items-center gap-2 text-sm text-rose-400">
-                    <Icons.AlertTriangle className="w-4 h-4" />
-                    {xmtp.error}
+                    {/* Vault Status */}
+                    <div className="glass-panel p-5">
+                      <SectionHeader
+                        icon={Icons.Database}
+                        title="Vault Status"
+                        description="Current configuration and state"
+                        variant="default"
+                      />
+                      
+                      <div className="glass-panel glass-elevated p-3 space-y-2 text-xs">
+                        <div className="info-row">
+                          <span className="info-row-label">Owner</span>
+                          <span className="info-row-value">{vaultStatus?.owner ?? '—'}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-row-label">Recovery</span>
+                          <span className="info-row-value">{vaultStatus?.recoveryAddress ?? '—'}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-row-label">Status</span>
+                          <span className={`badge ${vaultStatus?.paused ? 'badge-rose' : 'badge-green'}`}>
+                            {vaultStatus?.paused ? 'Paused' : 'Active'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                <div className="mt-4 glass-panel glass-elevated p-3 space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Agent</span>
-                    <span className="font-mono text-slate-400 truncate max-w-[180px]">{xmtp.agentAddress}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Reachable</span>
-                    <span className={`${xmtp.agentReachable ? 'text-emerald-400' : xmtp.agentReachable === null ? 'text-slate-500' : 'text-rose-400'}`}>
-                      {xmtp.agentReachable === null ? 'Unknown' : xmtp.agentReachable ? 'Yes' : 'No'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Messages</span>
-                    <span className="badge badge-blue">{xmtp.messages.length}</span>
-                  </div>
-                </div>
-              </div>
+                {activeTab === 'actions' && (
+                  <div className="space-y-4 fade-in">
+                    {/* Manual Withdrawal */}
+                    <div className="glass-panel glass-amber p-5">
+                      <SectionHeader
+                        icon={Icons.Unlock}
+                        title="Manual Withdrawal"
+                        description="Withdrawals require World ID + dual signatures"
+                        variant="amber"
+                      />
+                      
+                      <div className="space-y-3">
+                        <input
+                          value={withdrawRecipient}
+                          onChange={(e) => setWithdrawRecipient(e.target.value)}
+                          placeholder="Recipient (defaults to owner)"
+                          className="glass-input"
+                        />
+                        <input
+                          value={withdrawAmount}
+                          onChange={(e) => setWithdrawAmount(e.target.value)}
+                          placeholder="Amount in ETH"
+                          className="glass-input"
+                        />
+                        {address && activeVault && (
+                          <WorldIdActionButton
+                            actionType="withdraw"
+                            wallet={address}
+                            vault={activeVault}
+                            nonce={withdrawNonce}
+                            onVerified={({ signalHash }) => setWithdrawSignalHash(signalHash)}
+                          />
+                        )}
+                        <button 
+                          onClick={withdrawFromVault} 
+                          disabled={!activeVault || !withdrawSignalHash}
+                          className="glass-button w-full glass-button-warning"
+                        >
+                          <Icons.Unlock className="w-4 h-4" />
+                          Execute Withdrawal
+                        </button>
+                      </div>
+                    </div>
 
-              {/* Manual Withdrawal */}
-              <div className="glass-panel glass-amber p-5">
-                <SectionHeader
-                  icon={Icons.Unlock}
-                  title="Manual Withdrawal"
-                  description="Withdrawals require World ID + dual signatures"
-                  variant="amber"
-                />
-                
-                <div className="space-y-3">
-                  <input
-                    value={withdrawRecipient}
-                    onChange={(e) => setWithdrawRecipient(e.target.value)}
-                    placeholder="Recipient (defaults to owner)"
-                    className="glass-input"
-                  />
-                  <input
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    placeholder="Amount in ETH"
-                    className="glass-input"
-                  />
-                  {address && activeVault && (
-                    <WorldIdActionButton
-                      actionType="withdraw"
-                      wallet={address}
-                      vault={activeVault}
-                      nonce={withdrawNonce}
-                      onVerified={({ signalHash }) => setWithdrawSignalHash(signalHash)}
-                    />
-                  )}
-                  <button 
-                    onClick={withdrawFromVault} 
-                    disabled={!activeVault || !withdrawSignalHash}
-                    className="glass-button w-full glass-button-warning"
-                  >
-                    <Icons.Unlock className="w-4 h-4" />
-                    Execute Withdrawal
-                  </button>
-                </div>
-              </div>
-
-              {/* Recovery Path */}
-              <div className="glass-panel glass-rose p-5">
-                <SectionHeader
-                  icon={Icons.Shield}
-                  title="Recovery Path"
-                  description="Recovery requires pre-registered address + authorization"
-                  variant="rose"
-                />
-                
-                {address && activeVault && recoveryAddress ? (
-                  <div className="space-y-3">
-                    <WorldIdActionButton
-                      actionType="recover"
-                      wallet={address}
-                      vault={activeVault}
-                      nonce={recoveryNonce}
-                      recoveryAddress={recoveryAddress}
-                      onVerified={({ signalHash }) => setRecoverySignalHash(signalHash)}
-                    />
-                    <button 
-                      onClick={requestRecovery} 
-                      disabled={!recoverySignalHash}
-                      className="glass-button w-full glass-button-warning"
-                    >
-                      <Icons.Shield className="w-4 h-4" />
-                      Request Recovery
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 text-sm text-slate-500 p-3 rounded-xl bg-slate-950/50 border border-slate-800">
-                    <Icons.AlertTriangle className="w-4 h-4 text-amber-500" />
-                    Set a recovery address first
+                    {/* Recovery Path */}
+                    <div className="glass-panel glass-rose p-5">
+                      <SectionHeader
+                        icon={Icons.Shield}
+                        title="Recovery Path"
+                        description="Recovery requires pre-registered address"
+                        variant="rose"
+                      />
+                      
+                      {address && activeVault && recoveryAddress ? (
+                        <div className="space-y-3">
+                          <WorldIdActionButton
+                            actionType="recover"
+                            wallet={address}
+                            vault={activeVault}
+                            nonce={recoveryNonce}
+                            recoveryAddress={recoveryAddress}
+                            onVerified={({ signalHash }) => setRecoverySignalHash(signalHash)}
+                          />
+                          <button 
+                            onClick={requestRecovery} 
+                            disabled={!recoverySignalHash}
+                            className="glass-button w-full glass-button-warning"
+                          >
+                            <Icons.Shield className="w-4 h-4" />
+                            Request Recovery
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 text-sm text-slate-500 p-3 rounded-xl bg-slate-950/50 border border-slate-800">
+                          <Icons.AlertTriangle className="w-4 h-4 text-amber-500" />
+                          Set a recovery address first in Vault tab
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1226,14 +1317,23 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
-                  <button 
-                    onClick={triggerScan} 
-                    disabled={!activeVault}
-                    className="glass-button glass-button-primary whitespace-nowrap"
-                  >
-                    <Icons.Scan className="w-4 h-4" />
-                    Run AgentKit Scan
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={xmtp.refreshMessages}
+                      className="glass-button"
+                      title="Refresh XMTP Messages"
+                    >
+                      <Icons.RefreshCw className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={triggerScan} 
+                      disabled={!activeVault}
+                      className="glass-button glass-button-primary whitespace-nowrap"
+                    >
+                      <Icons.Scan className="w-4 h-4" />
+                      Run AgentKit Scan
+                    </button>
+                  </div>
                 </div>
 
                 {scanStatus && (
@@ -1266,7 +1366,7 @@ export default function Home() {
                     return (
                       <div 
                         key={proposal.proposal.proposalId}
-                        className={`glass-panel transition-all duration-300 ${
+                        className={`glass-panel proposal-card transition-all duration-300 ${
                           statusType === 'success' ? 'glass-green' : 
                           statusType === 'error' ? 'glass-rose' :
                           statusType === 'warning' ? 'glass-amber' : 'glass-blue'
@@ -1343,7 +1443,7 @@ export default function Home() {
                                   </p>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="card-grid-2 gap-2">
                                   <MetricCard 
                                     label="Input" 
                                     value={`${(Number(proposal.proposal.opportunity.amountIn) / 1_000_000).toFixed(2)} USDC`}
@@ -1391,7 +1491,7 @@ export default function Home() {
                                 <div className="glass-panel glass-elevated p-4 space-y-3">
                                   <h4 className="text-sm font-medium text-slate-300 mb-3">Execution Flow</h4>
                                   
-                                  <div className="grid grid-cols-2 gap-2">
+                                  <div className="card-grid-2 gap-2">
                                     <button 
                                       onClick={() => approveProposal(proposal)} 
                                       disabled={!xmtp.client}
@@ -1516,7 +1616,7 @@ export default function Home() {
                     xmtp.messages.map((message) => (
                       <div 
                         key={message.id} 
-                        className="glass-panel glass-elevated p-4"
+                        className="glass-panel glass-elevated p-4 hover-lift"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
