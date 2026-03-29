@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, usePublicClient, useReadContract, useSignTypedData, useWalletClient, useWriteContract } from 'wagmi';
-import { formatEther, parseEther } from 'viem';
+import { erc20Abi, formatEther, formatUnits, parseEther } from 'viem';
 import { cerberusVaultAbi, cerberusVaultFactoryAbi } from '@/lib/contracts';
 import { publicEnv } from '@/lib/public-env';
 import { useCerberusXMTP } from '@/hooks/useCerberusXMTP';
@@ -427,6 +427,17 @@ export default function Home() {
     },
   });
 
+  const { data: userUsdcBalance } = useReadContract({
+    address: publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_USDC as `0x${string}` | undefined,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: address ? [address as `0x${string}`] : undefined,
+    query: {
+      enabled: Boolean(address && publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_USDC),
+      refetchInterval: 15_000,
+    },
+  });
+
   const currentVaultAddress = vaultAddress as `0x${string}` | undefined;
 
   const activeVault = useMemo<`0x${string}` | null>(() => {
@@ -647,16 +658,30 @@ export default function Home() {
 
   const settlePayment = async (proposal: ProposalRecord) => {
     if (!address || !activeVault) return;
-    await x402.payForProposal({
-      proposalId: proposal.proposal.proposalId,
-      wallet: address,
-      vault: activeVault,
-      proposalHash: proposal.proposalHash,
-      paymentNetwork: proposal.proposal.paymentRequirement.paymentNetwork,
-      asset: proposal.proposal.paymentRequirement.paymentAsset,
-      amount: proposal.proposal.paymentRequirement.paymentAmount,
-    });
-    await refreshProposals();
+    try {
+      const requiredAmount = BigInt(proposal.proposal.paymentRequirement.paymentAmount);
+      const availableUsdc = userUsdcBalance ? BigInt(userUsdcBalance) : BigInt(0);
+      if (availableUsdc < requiredAmount) {
+        throw new Error(
+          `Insufficient Base Sepolia USDC in the connected wallet. Required ${formatUnits(requiredAmount, 6)} USDC, available ${formatUnits(availableUsdc, 6)} USDC.`
+        );
+      }
+
+      setScanStatus('Creating x402 payment payload...');
+      await x402.payForProposal({
+        proposalId: proposal.proposal.proposalId,
+        wallet: address,
+        vault: activeVault,
+        proposalHash: proposal.proposalHash,
+        paymentNetwork: proposal.proposal.paymentRequirement.paymentNetwork,
+        asset: proposal.proposal.paymentRequirement.paymentAsset,
+        amount: proposal.proposal.paymentRequirement.paymentAmount,
+      });
+      setScanStatus('x402 fee paid. Proposal is ready for authorization.');
+      await refreshProposals();
+    } catch (error) {
+      setScanStatus(error instanceof Error ? error.message : 'Failed to pay x402 authorization fee');
+    }
   };
 
   const executeProposal = async (proposal: ProposalRecord) => {
@@ -1004,6 +1029,16 @@ export default function Home() {
                     value={vaultStatus?.balances.usdc ?? '0.0'} 
                     loading={loadingVault}
                   />
+                </div>
+
+                <div className="glass-panel glass-elevated p-3 mb-4 text-xs space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Connected Wallet USDC</span>
+                    <span className="text-slate-300">{formatUnits(BigInt(userUsdcBalance ?? BigInt(0)), 6)} USDC</span>
+                  </div>
+                  <div className="text-slate-500">
+                    x402 fees are paid by the connected wallet, not the vault. Fund this wallet with Base Sepolia USDC before paying the authorization fee.
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -1391,12 +1426,28 @@ export default function Home() {
 
                                   <button 
                                     onClick={() => settlePayment(proposal)} 
-                                    disabled={!x402.isReady}
+                                    disabled={!x402.isReady || BigInt(userUsdcBalance ?? BigInt(0)) < BigInt(proposal.proposal.paymentRequirement.paymentAmount)}
                                     className="glass-button w-full"
                                   >
                                     <Icons.CreditCard className="w-4 h-4" />
-                                    Pay x402 Fee
+                                    {x402.paymentPhase === 'creating-intent'
+                                      ? 'Creating Intent...'
+                                      : x402.paymentPhase === 'creating-payload'
+                                        ? 'Creating Payload...'
+                                        : x402.paymentPhase === 'settling'
+                                          ? 'Settling Fee...'
+                                          : 'Pay x402 Fee'}
                                   </button>
+
+                                  {BigInt(userUsdcBalance ?? BigInt(0)) < BigInt(proposal.proposal.paymentRequirement.paymentAmount) && (
+                                    <p className="text-xs text-amber-400">
+                                      Fund the connected wallet with at least {formatUnits(BigInt(proposal.proposal.paymentRequirement.paymentAmount), 6)} Base Sepolia USDC to pay this fee.
+                                    </p>
+                                  )}
+
+                                  {x402.paymentError && (
+                                    <p className="text-xs text-rose-400">{x402.paymentError}</p>
+                                  )}
 
                                   <button 
                                     onClick={() => executeProposal(proposal)} 
