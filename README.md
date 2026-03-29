@@ -1,72 +1,181 @@
 # Cerberus
 
-Cerberus is a governed-vault demo for the World x Coinbase x XMTP AgentKit hackathon.
+Cerberus is a governed execution system for agent-controlled funds built for the World x Coinbase x XMTP hackathon.
 
-It is designed so that funds deposited into a Cerberus vault on Base Sepolia cannot move with a stolen wallet key alone.
+It combines:
 
-The live architecture is:
+- `World AgentKit` to verify that the worker agent is backed by a real human before it can access premium quote data
+- `World ID` to verify the human controller before governed outflows
+- `x402` to charge an authorization fee before execution is unlocked
+- `XMTP` to carry proposals, approvals, rejections, and execution updates
+- `Base Mainnet` for live quote discovery
+- `Base Sepolia` for governed vault execution
 
-- `Base`: live opportunity discovery and quote sourcing
-- `Base Sepolia`: final authority for governed funds, withdrawals, recovery, and executions
-- `XMTP`: proposal and approval transport layer
-- `World ID v4`: fresh human verification for governed outflows
-- `World AgentKit`: verifies the worker agent is human-backed before premium quote access
-- `x402`: paid authorization issuance, designed to stay chain-agnostic
-- `Redis`: active workflow coordination, TTLs, locks, and payment sessions
-- `Convex`: World ID verification registry and nullifier protection
-- `Vercel web`: dashboard + API routes
-- `Persistent worker`: XMTP agent inbox + AgentKit proposal publishing
+The security claim is intentionally narrow and honest:
+
+- funds deposited into the Cerberus vault cannot move with a stolen wallet key alone
+- governed execution requires the approval flow Cerberus enforces
+
+## What the app does
+
+Cerberus lets a persistent worker discover a live market opportunity, propose it over XMTP, and then require a verified human to approve and pay before the vault can execute anything on-chain.
+
+The product flow is:
+
+1. The user deploys and funds a governed vault on `Base Sepolia`
+2. The worker requests premium quote access through a `World AgentKit` protected route
+3. The worker fetches a live `Base Mainnet` quote and creates a proposal
+4. The proposal is delivered through `XMTP`
+5. The user verifies with `World ID`
+6. The user pays the `x402` authorization fee from the connected wallet
+7. Cerberus issues the execution authorization
+8. The vault executes on `Base Sepolia`
+
+## Architecture
+
+```text
+Browser UI (Vercel)
+  -> Vercel API routes
+    -> Redis (workflow state)
+    -> Convex (World ID verification records)
+    -> World ID verify API
+    -> Base Sepolia (vault state / execution)
+
+Railway worker
+  -> XMTP agent inbox
+  -> World AgentKit protected quote endpoint
+  -> Base Mainnet quote source
+  -> Redis (scan queue / proposals / heartbeat)
+
+Base Mainnet
+  -> live quote discovery only
+
+Base Sepolia
+  -> governed vault deployment and execution
+```
+
+## Protocol roles
+
+### World AgentKit
+- Protects the worker-facing premium quote route
+- Uses AgentBook verification so the worker must be a human-backed registered agent
+- Prevents the quote source from being an unbounded unauthenticated bot endpoint
+
+### World ID
+- Verifies the human controller for governed outflows
+- Bound to action, wallet, vault, proposal context, and nonce
+- Stored in Convex for freshness/replay checks
+
+### x402
+- Collects the authorization fee before Cerberus signs execution
+- Paid by the connected browser wallet, not the vault
+- Currently implemented for `Base Sepolia`
+
+### XMTP
+- Carries the proposal and approval negotiation layer
+- The worker has a persistent XMTP identity
+- The browser owner inbox approves or rejects proposals through XMTP
+
+### Base Mainnet
+- Used for real quote discovery
+- Current quote source is a protected premium quote route backed by live market access
+
+### Base Sepolia
+- Hosts the governed vault and execution flow
+- Keeps the demo safe while preserving real on-chain enforcement
 
 ## What is implemented
 
-- Guarded `CerberusVault` and `CerberusVaultFactory` contracts
-- EIP-712 execution, withdrawal, and recovery authorization shapes
-- World ID v4 request + verify flow using official RP signing helpers
+- Governed `CerberusVault` and `CerberusVaultFactory` contracts
+- EIP-712 authorization payloads for execution, withdrawal, and recovery
+- `World ID v4` request and verification flow
+- `World AgentKit` protected premium quote endpoint
+- Redis-backed workflow state for proposals, scans, payments, and worker heartbeat
 - Convex-backed World ID verification registry
-- Redis-backed proposal and payment workflow state
-- x402 payment intent, verification, and settlement flow
-- Real Base Mainnet quote-backed proposal generation with worker-owned opportunity discovery
-- AgentKit-protected premium quote endpoint backed by AgentBook verification and Redis free-trial state
-- XMTP browser inbox for the owner and a persistent Node worker for the agent
-- Vault-first dashboard for creation, bootstrap, funding, proposal review, payment, execution, withdrawal, and recovery
-- Contract deployment script and Hardhat node tests for the vault lifecycle
+- Persistent XMTP worker and browser-side XMTP inbox integration
+- x402 payment intent creation, payload creation, verification, and settlement flow
+- Base Mainnet quote-backed proposals
+- Base Sepolia governed execution path
 
-## Why the worker exists
+## Judge notes
 
-The worker is not decorative.
+- This project uses both `World AgentKit` and `World ID`.
+- `World AgentKit` protects the worker agent path.
+- `World ID` protects the human controller approval path.
+- `x402` is not decorative; execution authorization is fee-gated.
+- `XMTP` is not decorative; proposals and approvals move through XMTP.
+- Quote discovery is live on `Base Mainnet`.
+- Execution is demonstrated safely on `Base Sepolia`.
 
-It is required because XMTP agent identities need:
+## Deployment model
 
-- a long-lived process to stream messages continuously
-- a persistent local XMTP database so the installation identity survives restarts
-- a single authority that can publish proposals and process approvals/rejections
+- `Web`: Vercel
+- `Worker`: Railway
+- `Redis`: Upstash
+- `Convex`: hosted deployment
+- `Contracts`: Base Sepolia
 
-Vercel is excellent for the web app and short-lived API routes, but it is the wrong runtime for an always-on XMTP agent.
+The worker should not run on Vercel. It needs:
 
-## Important limitations
-
-This repo is now a real production-demo architecture, but it still needs deployment values for:
-
-- Base Sepolia contract addresses
-- Cerberus signer private key
-- XMTP worker private key and DB encryption key
-- WalletConnect project id if you do not want to use the documented default
-
-If those values are missing, the app builds and the dashboard loads, but the protected actions will refuse to proceed until configured.
+- a long-lived process
+- a persistent XMTP database
+- continuous access to Redis and the quote route
 
 ## Environment variables
 
-Use `.env.local.example` as the template.
+Use [`.env.local.example`](/Users/bitfalt/Developer/cerberus/.env.local.example) as the template.
 
-Required groups:
+High-level groups:
 
-- Public web config
-- World ID server config
+- public web config
+- Vercel server config
 - Redis
 - Base Sepolia RPC
-- Base Mainnet RPC for live quote discovery
+- Base Mainnet RPC
 - Cerberus signer key
-- Agent worker secrets
+- worker secrets
+- optional World x402 config
+
+Important runtime expectations:
+
+- the connected wallet needs `Base Sepolia ETH` for gas
+- the connected wallet needs `Base Sepolia USDC` for the x402 fee
+- the worker wallet must be registered in AgentBook
+
+## Setup order
+
+1. Deploy contracts to `Base Sepolia`
+2. Set Vercel env vars, including contract addresses and RPC URLs
+3. Set Railway env vars, including worker wallet, XMTP DB values, Redis, and app URL
+4. Register the worker wallet in World AgentBook:
+
+```bash
+npx @worldcoin/agentkit-cli register <agent-wallet-address>
+```
+
+5. Deploy the Railway worker
+6. Deploy Vercel
+7. Confirm `/api/health` shows Redis and worker heartbeat
+
+## Verification checklist
+
+- `npm run contracts:compile`
+- `npm run contracts:test`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
+- Confirm the worker heartbeat is visible in `/api/health`
+- Confirm the worker can pass the AgentKit quote challenge
+- Confirm a proposal is created and delivered over XMTP
+- Confirm World ID verification succeeds
+- Confirm x402 payment settles
+- Confirm the vault can execute on-chain
+
+## Current limitations
+
+- Execution is demonstrated on `Base Sepolia`, not Base Mainnet
+- The system is a production-grade demo architecture, not an audited mainnet custody system
+- `world` x402 support is architecture-ready but `base-sepolia` is the currently implemented payment network
 
 ## Scripts
 
@@ -79,77 +188,5 @@ npm run contracts:compile
 npm run contracts:test
 npm run contracts:deploy:base-sepolia
 npm run worker:dev
+npm run worker:start
 ```
-
-## Deployments
-
-- `Web`: Vercel
-- `Worker`: Railway (recommended), Fly.io, or Render
-- `Contracts`: Base Sepolia
-- `Redis`: Upstash or equivalent
-- `Convex`: hosted deployment
-
-### Worker hosting recommendation
-
-If you want the easiest setup, use `Railway` for the worker.
-
-Why:
-
-- easiest environment variable management
-- simple persistent volume setup for the XMTP local DB
-- easy logs and restarts
-- less operational friction than Fly for this use case
-
-Free hosting is the hard part: truly persistent background workers with disk are rarely free in a reliable way.
-
-If you need the most realistic cheap path:
-
-- `Vercel` for web
-- `Railway` for worker
-- `Upstash` for Redis
-- `Convex` hosted
-
-That is the highest signal-to-effort deployment setup for this repo.
-
-## Suggested rollout order
-
-1. Deploy contracts to Base Sepolia
-2. Copy the printed factory and adapter addresses into your public env vars
-3. Set the Cerberus signer private key and Base Sepolia RPC URL
-4. Set World ID and Redis env vars
-5. Set Base Mainnet RPC for quote discovery
-6. Set `CERBERUS_APP_URL` so the worker can call the protected quote endpoint on your deployed app
-7. Register the worker wallet in World AgentBook with `npx @worldcoin/agentkit-cli register <agent-wallet-address>`
-8. Start the XMTP worker with persistent storage
-9. Confirm the worker can fetch live Base Mainnet quotes and publish proposals
-10. Deploy the web app to Vercel
-11. Confirm the worker inbox address matches `NEXT_PUBLIC_XMTP_AGENT_ADDRESS`
-
-## Verification checklist
-
-- `npm run contracts:compile`
-- `npm run typecheck`
-- `npm run lint`
-- `npm run build`
-- Start the worker and confirm it logs a valid XMTP inbox
-- Create a vault from the dashboard
-- Bootstrap the vault
-- Fund the vault
-- Run a scan and confirm proposals land in Redis and XMTP
-- Confirm the worker can pass the AgentKit challenge on `/api/agent/premium-quote`
-- Confirm the proposal carries Base Mainnet quote metadata and Base Sepolia execution metadata
-- Complete World ID verification
-- Complete x402 payment
-- Execute through the vault
-
-## x402 payment networks
-
-`base-sepolia` is fully implemented now.
-
-`world` is supported by the architecture and the EVM gateway abstraction, but it only becomes active when you provide a World-compatible facilitator.
-
-That means:
-
-- the app no longer hardcodes a fake `world` path
-- the app will use `world` when the proper facilitator env vars are configured
-- otherwise it safely operates with `base-sepolia` only
