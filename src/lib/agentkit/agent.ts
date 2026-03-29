@@ -6,18 +6,14 @@ import { HumanMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { DEMO_LIMITS } from "@/lib/protocol/constants";
-import { hashProposal } from "@/lib/protocol/hash";
-import { proposalSchema, type Proposal } from "@/lib/protocol/schemas";
 import { getWorkerEnv, hasAgentWorkerEnv } from "@/lib/env";
+import type { BaseMainnetQuote } from "@/lib/quotes/base-mainnet-uniswap";
 
-type ScanInput = {
-  wallet: string;
-  vault: string;
-  paymentNetwork?: "base-sepolia" | "world";
-  adapter: `0x${string}`;
-  tokenIn: `0x${string}`;
-  tokenOut: `0x${string}`;
-  router: `0x${string}`;
+type ProposalAnalysis = {
+  analysisSummary: string;
+  riskScore: number;
+  confidence: number;
+  sourceRefs: string[];
 };
 
 let cachedAgent:
@@ -37,7 +33,6 @@ async function initializeAgent() {
   }
 
   const workerEnv = getWorkerEnv();
-
   const walletProvider = await CdpEvmWalletProvider.configureWithWallet({
     apiKeyId: workerEnv.CDP_API_KEY_ID,
     apiKeySecret: workerEnv.CDP_API_KEY_SECRET,
@@ -67,48 +62,87 @@ async function initializeAgent() {
   return cachedAgent;
 }
 
-function normalizeProposal(raw: unknown): Proposal {
-  return proposalSchema.parse(raw);
+function normalizeAnalysis(raw: unknown): ProposalAnalysis {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Agent analysis response was not an object");
+  }
+
+  const candidate = raw as Record<string, unknown>;
+  const analysisSummary = typeof candidate.analysisSummary === "string" ? candidate.analysisSummary : null;
+  const riskScore = typeof candidate.riskScore === "number" ? candidate.riskScore : null;
+  const confidence = typeof candidate.confidence === "number" ? candidate.confidence : null;
+  const sourceRefs = Array.isArray(candidate.sourceRefs)
+    ? candidate.sourceRefs.filter((entry): entry is string => typeof entry === "string")
+    : [];
+
+  if (!analysisSummary || riskScore === null || confidence === null) {
+    throw new Error("Agent analysis response was missing required fields");
+  }
+
+  return {
+    analysisSummary,
+    riskScore: Math.max(0, Math.min(100, riskScore)),
+    confidence: Math.max(0, Math.min(1, confidence)),
+    sourceRefs: sourceRefs.slice(0, 10),
+  };
 }
 
-export async function scanWithAgentKit(input: ScanInput): Promise<Array<{ proposal: Proposal; proposalHash: `0x${string}` }>> {
+export async function generateProposalAnalysis(input: {
+  wallet: string;
+  vault: string;
+  quote: BaseMainnetQuote;
+}): Promise<ProposalAnalysis> {
   const { agent } = await initializeAgent();
 
   const prompt = `You are Cerberus, a production-grade DeFi governance agent.
 
-Generate up to 2 actionable swap proposals for Base Sepolia demo execution.
+Analyze the following live opportunity sourced from Base Mainnet. Execution is governed separately on Base Sepolia.
 
-Rules:
-- NEVER fabricate market data. If you cannot justify a proposal, return an empty array.
-- Only emit proposals that satisfy risk <= ${DEMO_LIMITS.maxRiskScore} and confidence >= ${DEMO_LIMITS.minConfidence}.
-- All proposals must target chainId 84532 and proposalType "swap".
-- Use the exact wallet ${input.wallet} and vault ${input.vault}.
-- Use adapter ${input.adapter}, tokenIn ${input.tokenIn}, tokenOut ${input.tokenOut}, targetRouter ${input.router}.
-- encodedCall must be a valid 0x-prefixed calldata blob. If you cannot produce valid calldata, return an empty array.
-- paymentRequirement.required must be true and paymentRequirement.paymentNetwork must be ${input.paymentNetwork ?? "base-sepolia"}.
-- timing.expiresAt must be within 30 minutes of timing.createdAt.
-- metadata.policyVersion must be "v1".
-- Return JSON only.
+Hard constraints:
+- NEVER invent prices, chains, routes, or calldata.
+- Use only the provided quote data.
+- riskScore must be between 0 and 100.
+- confidence must be between 0 and 1.
+- Keep the analysis concise and operational.
+- If the opportunity does not clear the thresholds, still return an honest explanation and lower confidence.
 
-Return shape:
-[{...Proposal}]
-`;
+Thresholds:
+- maxRiskScore: ${DEMO_LIMITS.maxRiskScore}
+- minConfidence: ${DEMO_LIMITS.minConfidence}
+
+Quote context:
+- wallet: ${input.wallet}
+- vault: ${input.vault}
+- source: ${input.quote.source}
+- opportunityChain: ${input.quote.network} (${input.quote.chainId})
+- tokenIn: ${input.quote.tokenIn}
+- tokenOut: ${input.quote.tokenOut}
+- amountIn: ${input.quote.amountIn}
+- quotedAmountOut: ${input.quote.quotedAmountOut}
+- minAmountOut: ${input.quote.minAmountOut}
+- feeTier: ${input.quote.feeTier}
+- quoteTimestamp: ${input.quote.quoteTimestamp}
+- quoteHash: ${input.quote.quoteHash}
+- summary: ${input.quote.summary}
+
+Return JSON only with this exact shape:
+{
+  "analysisSummary": string,
+  "riskScore": number,
+  "confidence": number,
+  "sourceRefs": string[]
+}`;
 
   const response = await agent.invoke({
     messages: [new HumanMessage(prompt)],
   });
 
   const lastMessage = response.messages.at(-1);
-  const content = typeof lastMessage?.content === "string" ? lastMessage.content : JSON.stringify(lastMessage?.content ?? "[]");
-  const match = content.match(/\[[\s\S]*\]/);
+  const content = typeof lastMessage?.content === "string" ? lastMessage.content : JSON.stringify(lastMessage?.content ?? "{}");
+  const match = content.match(/\{[\s\S]*\}/);
   if (!match) {
-    return [];
+    throw new Error("Agent analysis did not return JSON");
   }
 
-  const parsed = JSON.parse(match[0]) as unknown[];
-  const proposals = parsed.map((entry) => normalizeProposal(entry));
-  return proposals.map((proposal) => ({
-    proposal,
-    proposalHash: hashProposal(proposal),
-  }));
+  return normalizeAnalysis(JSON.parse(match[0]) as unknown);
 }

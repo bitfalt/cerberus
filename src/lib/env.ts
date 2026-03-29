@@ -24,6 +24,7 @@ const serverSchema = publicSchema.extend({
   REDIS_URL: z.string().url().optional(),
   UPSTASH_REDIS_URL: z.string().url().optional(),
   BASE_SEPOLIA_RPC_URL: z.string().url().optional(),
+  BASE_MAINNET_RPC_URL: z.string().url().optional(),
   BASE_RPC_URL: z.string().url().optional(),
   CERBERUS_SIGNER_PRIVATE_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
   OPENAI_API_KEY: z.string().min(1).optional(),
@@ -32,10 +33,6 @@ const serverSchema = publicSchema.extend({
   WORLD_X402_FACILITATOR_URL: z.string().url().optional(),
   WORLD_X402_BEARER_TOKEN: z.string().min(1).optional(),
   WORLD_X402_CHAIN_ID: z.string().default("480"),
-  XMTP_ENV: z.enum(["dev", "production", "testnet", "mainnet", "local", "testnet-dev", "testnet-staging"]).optional(),
-  XMTP_WALLET_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
-  XMTP_DB_ENCRYPTION_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
-  XMTP_DB_PATH: z.string().min(1).optional(),
   NETWORK_ID: z.string().default("base-sepolia"),
 });
 
@@ -50,6 +47,7 @@ const workerSchema = z.object({
   NETWORK_ID: z.string().default("base-sepolia"),
   REDIS_URL: z.string().url().optional(),
   UPSTASH_REDIS_URL: z.string().url().optional(),
+  BASE_MAINNET_RPC_URL: z.string().url(),
 });
 
 export const publicEnv = publicSchema.parse({
@@ -77,6 +75,7 @@ export function getWorkerEnv() {
 }
 
 export const baseSepoliaRpcUrl = serverEnv.BASE_SEPOLIA_RPC_URL ?? serverEnv.BASE_RPC_URL ?? "https://sepolia.base.org";
+export const baseMainnetRpcUrl = serverEnv.BASE_MAINNET_RPC_URL;
 
 export function requireCerberusSignerPrivateKey() {
   if (!serverEnv.CERBERUS_SIGNER_PRIVATE_KEY) {

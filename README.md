@@ -6,6 +6,7 @@ It is designed so that funds deposited into a Cerberus vault on Base Sepolia can
 
 The live architecture is:
 
+- `Base`: live opportunity discovery and quote sourcing
 - `Base Sepolia`: final authority for governed funds, withdrawals, recovery, and executions
 - `XMTP`: proposal and approval transport layer
 - `World ID v4`: fresh human verification for governed outflows
@@ -23,6 +24,7 @@ The live architecture is:
 - Convex-backed World ID verification registry
 - Redis-backed proposal and payment workflow state
 - x402 payment intent, verification, and settlement flow
+- Real Base Mainnet quote-backed proposal generation with worker-owned opportunity discovery
 - XMTP browser inbox for the owner and a persistent Node worker for the agent
 - Vault-first dashboard for creation, bootstrap, funding, proposal review, payment, execution, withdrawal, and recovery
 - Contract deployment script and Hardhat node tests for the vault lifecycle
@@ -60,6 +62,7 @@ Required groups:
 - World ID server config
 - Redis
 - Base Sepolia RPC
+- Base Mainnet RPC for live quote discovery
 - Cerberus signer key
 - Agent worker secrets
 
@@ -112,9 +115,11 @@ That is the highest signal-to-effort deployment setup for this repo.
 2. Copy the printed factory and adapter addresses into your public env vars
 3. Set the Cerberus signer private key and Base Sepolia RPC URL
 4. Set World ID and Redis env vars
-5. Start the XMTP worker with persistent storage
-6. Deploy the web app to Vercel
-7. Confirm the worker inbox address matches `NEXT_PUBLIC_XMTP_AGENT_ADDRESS`
+5. Set Base Mainnet RPC for quote discovery
+6. Start the XMTP worker with persistent storage
+7. Confirm the worker can fetch live Base Mainnet quotes and publish proposals
+8. Deploy the web app to Vercel
+9. Confirm the worker inbox address matches `NEXT_PUBLIC_XMTP_AGENT_ADDRESS`
 
 ## Verification checklist
 
@@ -127,6 +132,7 @@ That is the highest signal-to-effort deployment setup for this repo.
 - Bootstrap the vault
 - Fund the vault
 - Run a scan and confirm proposals land in Redis and XMTP
+- Confirm the proposal carries Base Mainnet quote metadata and Base Sepolia execution metadata
 - Complete World ID verification
 - Complete x402 payment
 - Execute through the vault

@@ -7,13 +7,15 @@ import { getWorkerEnv } from "../../src/lib/env";
 import { log } from "../../src/lib/server/logger";
 import { createProposalRecord, dequeueScanRequest, listAllProposalRecords, updateProposalRecord, updateScanRequest } from "../../src/lib/server/workflow";
 import { serializeXMTPMessage } from "../../src/lib/protocol/messages";
-import { scanWithAgentKit } from "../../src/lib/agentkit/agent";
+import { generateProposalAnalysis } from "../../src/lib/agentkit/agent";
 import { hashProposal } from "../../src/lib/protocol/hash";
 import { proposalSchema } from "../../src/lib/protocol/schemas";
+import { encodeExecutionCalldata, fetchBaseMainnetUsdcWethQuote } from "../../src/lib/quotes/base-mainnet-uniswap";
+import { buildOpportunityProposal } from "../../src/lib/proposals/build-opportunity-proposal";
 
 function createSigner(): Signer {
   const workerEnv = getWorkerEnv();
-const account = privateKeyToAccount(workerEnv.XMTP_WALLET_KEY as `0x${string}`);
+  const account = privateKeyToAccount(workerEnv.XMTP_WALLET_KEY as `0x${string}`);
   const identifier: Identifier = {
     identifier: account.address.toLowerCase(),
     identifierKind: 0,
@@ -93,34 +95,52 @@ async function processQueuedScans() {
   await updateScanRequest(scanRequest.scanRequestId, { status: "processing" });
 
   try {
-    const generated = await scanWithAgentKit({
+    const quote = await fetchBaseMainnetUsdcWethQuote();
+    const analysis = await generateProposalAnalysis({
       wallet: scanRequest.wallet,
       vault: scanRequest.vault,
-      paymentNetwork: scanRequest.paymentNetwork,
-      adapter: scanRequest.adapter as `0x${string}`,
-      tokenIn: scanRequest.tokenIn as `0x${string}`,
-      tokenOut: scanRequest.tokenOut as `0x${string}`,
-      router: scanRequest.router as `0x${string}`,
+      quote,
     });
 
     const proposalIds: string[] = [];
-    for (const { proposal } of generated) {
-      const normalized = proposalSchema.parse({
-        ...proposal,
-        proposalId: proposal.proposalId || randomUUID(),
-      });
-      const proposalHash = hashProposal(normalized);
-      await createProposalRecord({
-        proposal: normalized,
-        proposalHash,
+    const proposalId = randomUUID();
+    const createdAt = Date.now();
+    const executionCalldata = encodeExecutionCalldata({
+      marketQuoteHash: quote.quoteHash,
+      amountIn: quote.amountIn,
+      minAmountOut: quote.minAmountOut,
+    });
+
+    const normalized = proposalSchema.parse(
+      buildOpportunityProposal({
+        proposalId,
         wallet: scanRequest.wallet,
         vault: scanRequest.vault,
-        status: "proposed",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-      proposalIds.push(normalized.proposalId);
-    }
+        paymentNetwork: scanRequest.paymentNetwork,
+        execution: {
+          adapter: scanRequest.adapter as `0x${string}`,
+          tokenIn: scanRequest.tokenIn as `0x${string}`,
+          tokenOut: scanRequest.tokenOut as `0x${string}`,
+          targetRouter: scanRequest.router as `0x${string}`,
+          encodedCall: executionCalldata,
+        },
+        quote,
+        analysis,
+        createdAt,
+        expiresAt: createdAt + 30 * 60 * 1000,
+      })
+    );
+    const proposalHash = hashProposal(normalized);
+    await createProposalRecord({
+      proposal: normalized,
+      proposalHash,
+      wallet: scanRequest.wallet,
+      vault: scanRequest.vault,
+      status: "proposed",
+      createdAt,
+      updatedAt: createdAt,
+    });
+    proposalIds.push(normalized.proposalId);
 
     await updateScanRequest(scanRequest.scanRequestId, {
       status: "completed",

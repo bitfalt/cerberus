@@ -12,7 +12,7 @@ export function hashProposal(proposal: Proposal): Hex {
   return keccak256(
     encodeAbiParameters(
       parseAbiParameters(
-        "uint8 version,string proposalId,address vault,uint256 chainId,string proposalType,string paymentNetwork,string paymentAsset,string paymentAmount,address adapter,address tokenIn,address tokenOut,uint256 amountIn,uint256 minAmountOut,address targetRouter,bytes encodedCall,uint256 riskScore,uint256 confidenceBps,string analysisSummary,uint256 createdAt,uint256 expiresAt,string policyVersion"
+        "uint8 version,string proposalId,address vault,uint256 chainId,string proposalType,uint256 opportunityChainId,string opportunityNetwork,string opportunitySource,address opportunityTargetRouter,address opportunityTokenIn,address opportunityTokenOut,uint256 opportunityAmountIn,uint256 quotedAmountOut,uint256 quoteMinAmountOut,uint24 quoteFeeTier,uint256 quoteTimestamp,bytes32 quoteHash,string paymentNetwork,string paymentAsset,string paymentAmount,address adapter,address tokenIn,address tokenOut,uint256 amountIn,uint256 minAmountOut,address targetRouter,bytes encodedCall,uint256 riskScore,uint256 confidenceBps,string analysisSummary,uint256 createdAt,uint256 expiresAt,string policyVersion,string opportunityChain,string executionChain,string quoteSource,uint256 slippageBps"
       ),
       [
         proposal.version,
@@ -20,6 +20,18 @@ export function hashProposal(proposal: Proposal): Hex {
         proposal.vault as Address,
         BigInt(proposal.chainId),
         proposal.proposalType,
+        BigInt(proposal.opportunity.chainId),
+        proposal.opportunity.network,
+        proposal.opportunity.source,
+        proposal.opportunity.targetRouter as Address,
+        proposal.opportunity.tokenIn as Address,
+        proposal.opportunity.tokenOut as Address,
+        BigInt(proposal.opportunity.amountIn),
+        BigInt(proposal.opportunity.quotedAmountOut),
+        BigInt(proposal.opportunity.minAmountOut),
+        proposal.opportunity.feeTier,
+        BigInt(proposal.opportunity.quoteTimestamp),
+        proposal.opportunity.quoteHash as Hex,
         proposal.paymentRequirement.paymentNetwork,
         proposal.paymentRequirement.paymentAsset,
         proposal.paymentRequirement.paymentAmount,
@@ -36,6 +48,10 @@ export function hashProposal(proposal: Proposal): Hex {
         BigInt(proposal.timing.createdAt),
         BigInt(proposal.timing.expiresAt),
         proposal.metadata.policyVersion,
+        proposal.metadata.opportunityChain,
+        proposal.metadata.executionChain,
+        proposal.metadata.quoteSource,
+        BigInt(proposal.metadata.slippageBps),
       ]
     )
   );

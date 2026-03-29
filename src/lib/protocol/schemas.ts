@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   GOVERNED_ACTIONS,
+  OPPORTUNITY_CHAIN,
   PAYMENT_NETWORKS,
   WORLD_ID_ACTIONS,
   XMTP_MESSAGE_TYPES,
@@ -21,6 +22,20 @@ export const proposalSchema = z.object({
   vault: addressSchema,
   chainId: z.literal(84532),
   proposalType: z.literal("swap"),
+  opportunity: z.object({
+    chainId: z.literal(OPPORTUNITY_CHAIN.id),
+    network: z.literal(OPPORTUNITY_CHAIN.name),
+    source: z.string().min(1),
+    targetRouter: addressSchema,
+    tokenIn: addressSchema,
+    tokenOut: addressSchema,
+    amountIn: z.string().min(1),
+    quotedAmountOut: z.string().min(1),
+    minAmountOut: z.string().min(1),
+    feeTier: z.number().int().nonnegative(),
+    quoteTimestamp: z.number().int().positive(),
+    quoteHash: hashSchema,
+  }),
   paymentRequirement: z.object({
     required: z.boolean(),
     paymentNetwork: paymentNetworkSchema,
@@ -48,6 +63,10 @@ export const proposalSchema = z.object({
   metadata: z.object({
     sourceRefs: z.array(z.string()).max(10),
     policyVersion: z.string().min(1),
+    opportunityChain: z.literal(OPPORTUNITY_CHAIN.name),
+    executionChain: z.literal("base-sepolia"),
+    quoteSource: z.string().min(1),
+    slippageBps: z.number().int().nonnegative(),
   }),
 });
 

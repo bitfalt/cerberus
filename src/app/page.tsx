@@ -23,6 +23,17 @@ type ProposalRecord = {
   proposal: {
     proposalId: string;
     proposalHash?: string;
+    opportunity: {
+      network: 'base';
+      source: string;
+      targetRouter: `0x${string}`;
+      amountIn: string;
+      quotedAmountOut: string;
+      minAmountOut: string;
+      feeTier: number;
+      quoteTimestamp: number;
+      quoteHash: `0x${string}`;
+    };
     paymentRequirement: { paymentNetwork: 'base-sepolia' | 'world'; paymentAsset: string; paymentAmount: string };
     action: {
       tokenIn: `0x${string}`;
@@ -34,7 +45,7 @@ type ProposalRecord = {
     };
     risk: { score: number; confidence: number; analysisSummary: string };
     timing: { expiresAt: number };
-    metadata: { policyVersion: string };
+    metadata: { policyVersion: string; opportunityChain: 'base'; executionChain: 'base-sepolia'; quoteSource: string; slippageBps: number };
   };
   proposalHash: `0x${string}`;
   wallet: string;
@@ -207,7 +218,7 @@ export default function Home() {
 
   const triggerScan = async () => {
     if (!address || !activeVault) return;
-    setScanStatus('Scanning with AgentKit...');
+    setScanStatus('Scanning Base Mainnet for live quote-backed opportunities...');
     const response = await fetch('/api/agent/scan', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -437,14 +448,15 @@ export default function Home() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-3xl space-y-3">
               <p className="text-xs uppercase tracking-[0.4em] text-sky-300">Cerberus Governance Console</p>
-              <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Production demo for governed vault execution on Base Sepolia.</h1>
+              <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Real Base market discovery with governed Base Sepolia execution.</h1>
               <p className="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-                XMTP carries the proposal intent, World ID proves the human, x402 charges for authorization issuance, and the vault refuses outflows without Cerberus co-signing.
+                Cerberus scans real Base Mainnet liquidity for opportunities, then runs the approval, World ID, x402, and governed vault flow safely on Base Sepolia.
               </p>
             </div>
             <div className="flex flex-col items-start gap-3 rounded-3xl border border-white/10 bg-slate-950/50 p-4">
               <ConnectButton />
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                <span className="rounded-full border border-white/10 px-3 py-1">Opportunity chain: Base</span>
                 <span className="rounded-full border border-white/10 px-3 py-1">Exec chain: Base Sepolia</span>
                 <span className="rounded-full border border-white/10 px-3 py-1">x402 default: {defaultPaymentNetwork}</span>
                 <span className="rounded-full border border-white/10 px-3 py-1">World ID v4</span>
@@ -589,7 +601,7 @@ export default function Home() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-white">Agent proposals</h2>
-                    <p className="mt-1 text-sm text-slate-400">Create proposals, push them to the XMTP agent, then complete the World ID and x402 gates before on-chain execution.</p>
+                    <p className="mt-1 text-sm text-slate-400">Queue a worker job, fetch a live Base Mainnet quote, push the proposal over XMTP, then complete the World ID and x402 gates before testnet execution.</p>
                   </div>
                   <button onClick={triggerScan} disabled={!activeVault} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
                     Run AgentKit scan
@@ -615,6 +627,7 @@ export default function Home() {
                               <span className="rounded-full border border-white/10 px-3 py-1">Risk {proposal.proposal.risk.score}</span>
                               <span className="rounded-full border border-white/10 px-3 py-1">Confidence {(proposal.proposal.risk.confidence * 100).toFixed(0)}%</span>
                               <span className="rounded-full border border-white/10 px-3 py-1">Payment {proposal.proposal.paymentRequirement.paymentNetwork}</span>
+                              <span className="rounded-full border border-white/10 px-3 py-1">Quote {proposal.proposal.opportunity.source}</span>
                             </div>
                             <div>
                               <h3 className="text-xl font-semibold text-white">Proposal {proposal.proposal.proposalId}</h3>
@@ -622,9 +635,17 @@ export default function Home() {
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                               <Metric label="Proposal hash" value={`${proposal.proposalHash.slice(0, 10)}...${proposal.proposalHash.slice(-8)}`} />
-                              <Metric label="Amount in" value={formatEther(BigInt(proposal.proposal.action.amountIn)) + ' ETH'} />
-                              <Metric label="Min amount out" value={proposal.proposal.action.minAmountOut} />
+                              <Metric label="Base quote in" value={`${(Number(proposal.proposal.opportunity.amountIn) / 1_000_000).toFixed(2)} USDC`} />
+                              <Metric label="Quoted out" value={`${formatEther(BigInt(proposal.proposal.opportunity.quotedAmountOut))} WETH`} />
+                              <Metric label="Min receive" value={`${formatEther(BigInt(proposal.proposal.opportunity.minAmountOut))} ETH/WETH`} />
+                              <Metric label="Fee tier" value={`${proposal.proposal.opportunity.feeTier / 10_000}%`} />
                               <Metric label="Expires" value={new Date(proposal.proposal.timing.expiresAt).toLocaleTimeString()} />
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">
+                              <p>Opportunity chain: {proposal.proposal.metadata.opportunityChain}</p>
+                              <p className="mt-1">Execution chain: {proposal.proposal.metadata.executionChain}</p>
+                              <p className="mt-1">Quote source: {proposal.proposal.metadata.quoteSource}</p>
+                              <p className="mt-1 break-all">Quote hash: {proposal.proposal.opportunity.quoteHash}</p>
                             </div>
                           </div>
                           <div className="w-full max-w-md space-y-3 rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-4">

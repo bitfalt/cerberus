@@ -7,6 +7,12 @@ export const EXECUTION_CHAIN = {
   eip155: "eip155:84532",
 } as const;
 
+export const OPPORTUNITY_CHAIN = {
+  id: 8453,
+  name: "base",
+  eip155: "eip155:8453",
+} as const;
+
 export const PAYMENT_NETWORKS = ["base-sepolia", "world"] as const;
 export const WORLD_ID_ACTIONS = [
   "cerberus_vault_execute",
@@ -40,3 +46,7 @@ export const DEMO_LIMITS = {
   minConfidence: 0.65,
   maxNotionalUsd: 25_000,
 } as const;
+
+export const SLIPPAGE_BPS = 150;
+export const QUOTE_AMOUNT_USDC = BigInt(10_000_000);
+export const UNISWAP_V3_FEE_TIERS = [500, 3000, 10000] as const;
