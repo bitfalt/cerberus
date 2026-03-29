@@ -6,7 +6,7 @@ ENV NODE_ENV=production
 
 ARG CACHE_BUST=1
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY . .
 
