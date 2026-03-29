@@ -13,7 +13,7 @@ import { proposalSchema } from "../../src/lib/protocol/schemas";
 import { encodeExecutionCalldata } from "../../src/lib/quotes/base-mainnet-uniswap";
 import type { BaseMainnetQuote } from "../../src/lib/quotes/base-mainnet-uniswap";
 import { buildOpportunityProposal } from "../../src/lib/proposals/build-opportunity-proposal";
-import { buildAgentkitSignMessage, buildSignedAgentkitHeader } from "../../src/lib/world-agentkit";
+import { buildAgentkitSignMessage, buildSignedAgentkitHeader } from "../../src/lib/agentkit-signing";
 
 function createSigner(): Signer {
   const workerEnv = getWorkerEnv();
