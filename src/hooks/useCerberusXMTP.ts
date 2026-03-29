@@ -67,10 +67,12 @@ export function useCerberusXMTP() {
         },
       };
 
-      const backend = await xmtp.createBackend({ env: publicEnv.NEXT_PUBLIC_XMTP_ENV });
+      const backend = await xmtp.createBackend({
+        env: publicEnv.NEXT_PUBLIC_XMTP_ENV,
+        appVersion: 'cerberus/1.0.0',
+      });
       const xmtpClient = await xmtp.Client.create(signer, {
         backend,
-        appVersion: 'cerberus/1.0.0',
       } as unknown as Parameters<typeof xmtp.Client.create>[1]);
 
       await xmtpClient.conversations.syncAll();
