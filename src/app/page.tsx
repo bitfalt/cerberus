@@ -98,6 +98,12 @@ function currentTimestamp() {
   return Date.now();
 }
 
+function createNumericNonce() {
+  return `${Date.now()}${Math.floor(Math.random() * 1_000_000)
+    .toString()
+    .padStart(6, '0')}`;
+}
+
 // Inline SVG Icons
 const Icons = {
   Shield: ({ className }: { className?: string }) => (
@@ -450,8 +456,8 @@ export default function Home() {
   const [actionNonce, setActionNonce] = useState<Record<string, string>>({});
   const [recoverySignalHash, setRecoverySignalHash] = useState<string | null>(null);
   const [withdrawSignalHash, setWithdrawSignalHash] = useState<string | null>(null);
-  const [withdrawNonce, setWithdrawNonce] = useState<string>(() => crypto.randomUUID());
-  const [recoveryNonce, setRecoveryNonce] = useState<string>(() => crypto.randomUUID());
+  const [withdrawNonce, setWithdrawNonce] = useState<string>(() => createNumericNonce());
+  const [recoveryNonce, setRecoveryNonce] = useState<string>(() => createNumericNonce());
   const [expandedProposals, setExpandedProposals] = useState<Set<string>>(new Set());
   const [loadingProposals, setLoadingProposals] = useState(true);
   const [loadingVault, setLoadingVault] = useState(true);
@@ -575,6 +581,23 @@ export default function Home() {
     return () => window.clearTimeout(timeout);
   }, [refreshHealthStatus]);
 
+  useEffect(() => {
+    if (proposals.length === 0) {
+      return;
+    }
+    setActionNonce((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const proposal of proposals) {
+        if (!next[proposal.proposal.proposalId]) {
+          next[proposal.proposal.proposalId] = createNumericNonce();
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [proposals]);
+
   const toggleProposal = (id: string) => {
     setExpandedProposals(prev => {
       const next = new Set(prev);
@@ -670,7 +693,7 @@ export default function Home() {
 
   const approveProposal = async (proposal: ProposalRecord) => {
     if (!address) return;
-    const nonce = crypto.randomUUID();
+    const nonce = actionNonce[proposal.proposal.proposalId] ?? createNumericNonce();
     setActionNonce((current) => ({ ...current, [proposal.proposal.proposalId]: nonce }));
 
     const messageId = await xmtp.sendJsonMessage({
@@ -744,7 +767,7 @@ export default function Home() {
       return existing;
     }
 
-    const created = crypto.randomUUID();
+    const created = createNumericNonce();
     setActionNonce((current) => ({
       ...current,
       [proposalId]: current[proposalId] ?? created,
@@ -895,7 +918,7 @@ export default function Home() {
       await publicClient.waitForTransactionReceipt({ hash: txHash });
     }
     setWithdrawSignalHash(null);
-    setWithdrawNonce(crypto.randomUUID());
+    setWithdrawNonce(createNumericNonce());
     await refreshVaultStatus();
   };
 
@@ -934,7 +957,7 @@ export default function Home() {
       timestamp: currentTimestamp(),
     });
     setRecoverySignalHash(null);
-    setRecoveryNonce(crypto.randomUUID());
+    setRecoveryNonce(createNumericNonce());
   };
 
   // Tab configuration
@@ -1432,7 +1455,7 @@ export default function Home() {
                   />
                 ) : (
                   proposals.map((proposal) => {
-                    const nonce = actionNonce[proposal.proposal.proposalId] ?? crypto.randomUUID();
+                    const nonce = actionNonce[proposal.proposal.proposalId] ?? createNumericNonce();
                     const isExpanded = expandedProposals.has(proposal.proposal.proposalId);
                     const statusType = getProposalStatusType(proposal.status);
 

@@ -7,7 +7,7 @@ import { cerberusDomain, executionAuthorizationTypes, toExecutionTypedData } fro
 import { hashPolicyContext } from "@/lib/protocol/hash";
 import { executionAuthorizationSchema } from "@/lib/protocol/schemas";
 import { getCerberusAccount } from "@/lib/server/wallet";
-import { getPaymentIntentByProposal, getProposalRecord, reserveNonce, updateProposalRecord } from "@/lib/server/workflow";
+import { getPaymentIntent, getPaymentIntentByProposal, getProposalRecord, reserveNonce, updateProposalRecord } from "@/lib/server/workflow";
 import { TTL_MS } from "@/lib/protocol/constants";
 import { durationMsToSeconds, nowUnixSeconds } from "@/lib/time";
 import { toWorldAction } from "@/lib/worldid";
@@ -34,7 +34,9 @@ export async function POST(request: Request, context: { params: Promise<{ propos
       return NextResponse.json({ error: "Proposal is not ready for authorization" }, { status: 409 });
     }
 
-    const payment = await getPaymentIntentByProposal(proposalId);
+    const payment = proposalRecord.paymentId
+      ? await getPaymentIntent(proposalRecord.paymentId).catch(() => null)
+      : await getPaymentIntentByProposal(proposalId);
     if (!payment || payment.status !== "settled") {
       return NextResponse.json({ error: "Settled x402 payment required" }, { status: 402 });
     }
