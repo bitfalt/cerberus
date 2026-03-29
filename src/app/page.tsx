@@ -1,416 +1,694 @@
-// app/page.tsx - Main Cerberus dashboard with XMTP as negotiation layer
 'use client';
 
-import { useEffect, Suspense, useState, useCallback } from 'react';
-import { useAccount } from 'wagmi';
-import { useConnectModal } from '@rainbow-me/rainbowkit';
-import { WorldIDVerify } from '@/components/WorldIDVerify';
-import { XMTPChat } from '@/components/XMTPChat';
-import { OpportunityCard } from '@/components/OpportunityCard';
-import { AgentStatus } from '@/components/AgentStatus';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { useAgent } from '@/hooks/useAgent';
-import { useX402 } from '@/hooks/useX402';
-import { useWorldID } from '@/hooks/useWorldID';
-import { type Opportunity } from '@/lib/agentkit/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount, usePublicClient, useReadContract, useSignTypedData, useWalletClient, useWriteContract } from 'wagmi';
+import { formatEther, parseEther } from 'viem';
+import { cerberusVaultAbi, cerberusVaultFactoryAbi } from '@/lib/contracts';
+import { publicEnv } from '@/lib/env';
+import { useCerberusXMTP } from '@/hooks/useCerberusXMTP';
+import { useCerberusX402 } from '@/hooks/useCerberusX402';
+import { WorldIdActionButton } from '@/components/WorldIdActionButton';
+import { cerberusDomain, executionAuthorizationTypes, toExecutionTypedData, toWithdrawalTypedData, withdrawalAuthorizationTypes } from '@/lib/protocol/eip712';
+
+type ProposalRecord = {
+  proposal: {
+    proposalId: string;
+    proposalHash?: string;
+    paymentRequirement: { paymentNetwork: 'base-sepolia' | 'world'; paymentAsset: string; paymentAmount: string };
+    action: {
+      tokenIn: `0x${string}`;
+      tokenOut: `0x${string}`;
+      amountIn: string;
+      minAmountOut: string;
+      encodedCall: `0x${string}`;
+      adapter: `0x${string}`;
+    };
+    risk: { score: number; confidence: number; analysisSummary: string };
+    timing: { expiresAt: number };
+    metadata: { policyVersion: string };
+  };
+  proposalHash: `0x${string}`;
+  wallet: string;
+  vault: string;
+  status: string;
+  paymentId?: string;
+  executionTxHash?: string;
+};
+
+type VaultStatus = {
+  owner: string;
+  recoveryAddress: string;
+  paused: boolean;
+  balances: { eth: string; usdc: string };
+};
+
+function currentTimestamp() {
+  return Date.now();
+}
 
 export default function Home() {
-  const { address } = useAccount();
-  const { openConnectModal } = useConnectModal();
-  const { 
-    opportunities, 
-    isScanning, 
-    scan, 
-    pendingProposals, 
-    executeApprovedTrade,
-    negotiationStates 
-  } = useAgent();
-  const { 
-    markXMTPApproved, 
-    canPay, 
-    createForXMTPApproved,
-    activePayment 
-  } = useX402();
-  const { verified: worldIDVerified } = useWorldID();
-  
-  const [activeTab, setActiveTab] = useState<'negotiation' | 'opportunities' | 'settings'>('negotiation');
-  const [executionQueue, setExecutionQueue] = useState<string[]>([]);
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
+  const { signTypedDataAsync } = useSignTypedData();
 
-  // Handle XMTP approval - mark as approved and proceed to payment
-  const handleApprove = useCallback(async (opportunity: Opportunity) => {
-    const isHighValue = opportunity.amount > 1000;
-    
-    // Mark as XMTP-approved in x402
-    // For high-value trades, XMTP approval alone isn't enough - World ID per-transaction is also required
-    // This is handled in XMTPChat component via the handlePayAndExecute flow
-    markXMTPApproved(opportunity.id, isHighValue ? worldIDVerified : true);
-    
-    // Note: For high-value trades, World ID per-transaction verification happens in XMTPChat
-    // when the user clicks "Pay & Execute", not at approval time.
-    // This ensures: XMTP Approval → World ID (if high-value) → x402 → Execute
-    
-    // Add to execution queue
-    setExecutionQueue(prev => [...prev, opportunity.id]);
-  }, [markXMTPApproved, worldIDVerified]);
+  const [recoveryAddress, setRecoveryAddress] = useState<string>('');
+  const [depositAmount, setDepositAmount] = useState('0.01');
+  const [withdrawAmount, setWithdrawAmount] = useState('0.001');
+  const [withdrawRecipient, setWithdrawRecipient] = useState('');
+  const [scanStatus, setScanStatus] = useState<string | null>(null);
+  const [bootstrapStatus, setBootstrapStatus] = useState<string | null>(null);
+  const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
+  const [proposals, setProposals] = useState<ProposalRecord[]>([]);
+  const [verificationSignals, setVerificationSignals] = useState<Record<string, string>>({});
+  const [actionNonce, setActionNonce] = useState<Record<string, string>>({});
+  const [recoverySignalHash, setRecoverySignalHash] = useState<string | null>(null);
+  const [withdrawSignalHash, setWithdrawSignalHash] = useState<string | null>(null);
 
-  // Handle XMTP rejection
-  const handleReject = useCallback((opportunityId: string, reason: string) => {
-    console.log('Rejected opportunity:', opportunityId, reason);
-    // Remove from execution queue if present
-    setExecutionQueue(prev => prev.filter(id => id !== opportunityId));
-  }, []);
+  const xmtp = useCerberusXMTP();
+  const x402 = useCerberusX402();
 
-  // Handle execution after payment
-  const handleExecute = useCallback(async (opportunity: Opportunity) => {
-    if (!canPay(opportunity.id)) {
-      console.error('Cannot execute: trade not XMTP-approved');
+  const { data: vaultAddress, refetch: refetchVaultAddress } = useReadContract({
+    address: publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_VAULT_FACTORY as `0x${string}`,
+    abi: cerberusVaultFactoryAbi,
+    functionName: 'vaultByOwner',
+    args: [address as `0x${string}`],
+    query: {
+      enabled: Boolean(address),
+      refetchInterval: 10_000,
+    },
+  });
+
+  const currentVaultAddress = vaultAddress as `0x${string}` | undefined;
+
+  const activeVault = useMemo<`0x${string}` | null>(() => {
+    if (!currentVaultAddress || currentVaultAddress === '0x0000000000000000000000000000000000000000') {
+      return null;
+    }
+    return currentVaultAddress;
+  }, [currentVaultAddress]);
+
+  const signTypedData = signTypedDataAsync as unknown as (args: {
+    domain: Record<string, unknown>;
+    types: Record<string, unknown>;
+    primaryType: string;
+    message: Record<string, unknown>;
+  }) => Promise<`0x${string}`>;
+
+  const refreshProposals = useCallback(async () => {
+    if (!address) return;
+    const response = await fetch(`/api/proposals?wallet=${address}`);
+    const payload = await response.json();
+    if (response.ok) {
+      setProposals(payload.proposals ?? []);
+    }
+  }, [address]);
+
+  const refreshVaultStatus = useCallback(async () => {
+    if (!activeVault) return;
+    const response = await fetch(`/api/vault/${activeVault}/status`);
+    const payload = await response.json();
+    if (response.ok) {
+      setVaultStatus(payload);
+    }
+  }, [activeVault]);
+
+  useEffect(() => {
+    if (!address) return;
+    const timeout = window.setTimeout(() => {
+      void refreshProposals();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [address, refreshProposals]);
+
+  useEffect(() => {
+    if (!activeVault) return;
+    const timeout = window.setTimeout(() => {
+      void refreshVaultStatus();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [activeVault, refreshVaultStatus]);
+
+  useEffect(() => {
+    if (!address) return;
+    const timer = window.setInterval(() => {
+      void refreshProposals();
+      void refreshVaultStatus();
+      void xmtp.refreshMessages();
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [address, activeVault, refreshProposals, refreshVaultStatus, xmtp]);
+
+  const createVault = async () => {
+    if (!recoveryAddress) {
+      setBootstrapStatus('Set a recovery address before creating a vault.');
       return;
     }
-    
-    const result = await executeApprovedTrade(opportunity.id);
-    
-    if (result.success) {
-      // Remove from queue
-      setExecutionQueue(prev => prev.filter(id => id !== opportunity.id));
+    const hash = await writeContractAsync({
+      address: publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_VAULT_FACTORY as `0x${string}`,
+      abi: cerberusVaultFactoryAbi,
+      functionName: 'createVault',
+      args: [recoveryAddress as `0x${string}`],
+    });
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash });
     }
-  }, [canPay, executeApprovedTrade]);
+    await refetchVaultAddress();
+    setBootstrapStatus('Vault deployed. Bootstrap permissions next.');
+  };
 
-  // Check if we have any pending XMTP approvals
-  const hasPendingProposals = pendingProposals.length > 0;
+  const bootstrapVault = async () => {
+    if (!activeVault || !address) return;
+    setBootstrapStatus('Bootstrapping vault permissions...');
+    const response = await fetch(`/api/vault/${activeVault}/bootstrap`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ owner: address }),
+    });
+    const payload = await response.json();
+    setBootstrapStatus(response.ok ? 'Vault bootstrapped successfully.' : payload.error ?? 'Vault bootstrap failed');
+    if (response.ok) {
+      await refreshVaultStatus();
+    }
+  };
+
+  const fundVault = async () => {
+    if (!walletClient || !activeVault || !walletClient.account) return;
+    const hash = await walletClient.sendTransaction({
+      account: walletClient.account,
+      to: activeVault,
+      value: parseEther(depositAmount),
+    });
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash });
+    }
+    await refreshVaultStatus();
+  };
+
+  const connectXmtp = async () => {
+    try {
+      await xmtp.connect();
+    } catch {
+      // surfaced in hook state
+    }
+  };
+
+  const triggerScan = async () => {
+    if (!address || !activeVault) return;
+    setScanStatus('Scanning with AgentKit...');
+    const response = await fetch('/api/agent/scan', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        wallet: address,
+        vault: activeVault,
+        paymentNetwork: publicEnv.NEXT_PUBLIC_DEFAULT_PAYMENT_NETWORK,
+        adapter: publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_SWAP_ADAPTER,
+        tokenIn: publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_USDC,
+        tokenOut: '0x0000000000000000000000000000000000000000',
+        router: publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_SWAP_ADAPTER,
+      }),
+    });
+    const payload = await response.json();
+    setScanStatus(response.ok ? `Scan complete. ${payload.proposals?.length ?? 0} proposal(s) staged.` : payload.error ?? 'Scan failed');
+    await refreshProposals();
+  };
+
+  const approveProposal = async (proposal: ProposalRecord) => {
+    if (!address) return;
+    const nonce = crypto.randomUUID();
+    setActionNonce((current) => ({ ...current, [proposal.proposal.proposalId]: nonce }));
+
+    const messageId = await xmtp.sendJsonMessage({
+      type: 'APPROVAL',
+      version: 1,
+      proposalId: proposal.proposal.proposalId,
+      proposalHash: proposal.proposalHash,
+      vault: proposal.vault,
+      wallet: proposal.wallet,
+      timestamp: currentTimestamp(),
+      approvalScope: 'execute',
+    });
+
+    await fetch(`/api/proposals/${proposal.proposal.proposalId}/approve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ wallet: address, messageId }),
+    });
+
+    await refreshProposals();
+  };
+
+  const rejectProposal = async (proposal: ProposalRecord) => {
+    if (!address) return;
+    const reason = 'Rejected from governance console';
+    await xmtp.sendJsonMessage({
+      type: 'REJECTION',
+      version: 1,
+      proposalId: proposal.proposal.proposalId,
+      proposalHash: proposal.proposalHash,
+      vault: proposal.vault,
+      wallet: proposal.wallet,
+      timestamp: currentTimestamp(),
+      reason,
+    });
+
+    await fetch(`/api/proposals/${proposal.proposal.proposalId}/reject`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ wallet: address, reason }),
+    });
+
+    await refreshProposals();
+  };
+
+  const settlePayment = async (proposal: ProposalRecord) => {
+    if (!address || !activeVault) return;
+    await x402.payForProposal({
+      proposalId: proposal.proposal.proposalId,
+      wallet: address,
+      vault: activeVault,
+      proposalHash: proposal.proposalHash,
+      paymentNetwork: proposal.proposal.paymentRequirement.paymentNetwork,
+      asset: proposal.proposal.paymentRequirement.paymentAsset,
+      amount: proposal.proposal.paymentRequirement.paymentAmount,
+    });
+    await refreshProposals();
+  };
+
+  const executeProposal = async (proposal: ProposalRecord) => {
+    if (!address || !activeVault) return;
+    const nonce = actionNonce[proposal.proposal.proposalId] ?? crypto.randomUUID();
+    const signalHash = verificationSignals[proposal.proposal.proposalId];
+    if (!signalHash) {
+      throw new Error('World ID verification required before execution');
+    }
+
+    const authResponse = await fetch(`/api/proposals/${proposal.proposal.proposalId}/authorize`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        wallet: address,
+        vault: activeVault,
+        nonce,
+        signalHash,
+      }),
+    });
+    const authPayload = await authResponse.json();
+    if (!authResponse.ok) {
+      throw new Error(authPayload.error ?? 'Failed to authorize proposal');
+    }
+
+    const typed = toExecutionTypedData(authPayload.authorization);
+    const ownerSignature = await signTypedData({
+      domain: cerberusDomain(84532, activeVault) as never,
+      types: executionAuthorizationTypes as never,
+      primaryType: typed.primaryType as never,
+      message: typed.message as never,
+    });
+
+    const txHash = await writeContractAsync({
+      address: activeVault,
+      abi: cerberusVaultAbi,
+      functionName: 'executeAuthorized',
+      args: [authPayload.authorization, ownerSignature, authPayload.cerberusSignature, proposal.proposal.action.encodedCall],
+    });
+
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+    }
+
+    await fetch(`/api/proposals/${proposal.proposal.proposalId}/executed`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ txHash }),
+    });
+
+    await xmtp.sendJsonMessage({
+      type: 'EXECUTION_CONFIRMED',
+      version: 1,
+      proposalId: proposal.proposal.proposalId,
+      proposalHash: proposal.proposalHash,
+      vault: proposal.vault,
+      wallet: proposal.wallet,
+      timestamp: currentTimestamp(),
+      txHash,
+    });
+
+    await refreshProposals();
+    await refreshVaultStatus();
+  };
+
+  const withdrawFromVault = async () => {
+    if (!address || !activeVault) return;
+    const nonce = crypto.randomUUID();
+    if (!withdrawSignalHash) {
+      throw new Error('World ID verification is required for withdrawals');
+    }
+
+    const response = await fetch(`/api/proposals/manual-withdraw/withdraw-authorize`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        wallet: address,
+        vault: activeVault,
+        token: '0x0000000000000000000000000000000000000000',
+        to: withdrawRecipient || address,
+        amount: parseEther(withdrawAmount).toString(),
+        nonce,
+        signalHash: withdrawSignalHash,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error ?? 'Failed to authorize withdrawal');
+    }
+
+    const typed = toWithdrawalTypedData(payload.authorization);
+    const ownerSignature = await signTypedData({
+      domain: cerberusDomain(84532, activeVault) as never,
+      types: withdrawalAuthorizationTypes as never,
+      primaryType: typed.primaryType as never,
+      message: typed.message as never,
+    });
+
+    const txHash = await writeContractAsync({
+      address: activeVault,
+      abi: cerberusVaultAbi,
+      functionName: 'withdrawAuthorized',
+      args: [payload.authorization, ownerSignature, payload.cerberusSignature],
+    });
+
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+    }
+    await refreshVaultStatus();
+  };
+
+  const requestRecovery = async () => {
+    if (!address || !activeVault || !recoveryAddress || !recoverySignalHash) return;
+    const nonce = crypto.randomUUID();
+    const response = await fetch(`/api/vault/${activeVault}/recovery-authorize`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        wallet: address,
+        recoveryAddress,
+        nonce,
+        signalHash: recoverySignalHash,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error ?? 'Failed to authorize recovery');
+    }
+
+    const txHash = await writeContractAsync({
+      address: activeVault,
+      abi: cerberusVaultAbi,
+      functionName: 'requestRecovery',
+      args: [payload.authorization, payload.cerberusSignature],
+    });
+
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+    }
+    await xmtp.sendJsonMessage({
+      type: 'RECOVERY_REQUESTED',
+      version: 1,
+      vault: activeVault,
+      wallet: address,
+      timestamp: currentTimestamp(),
+    });
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Cerberus</h1>
-                <p className="text-xs text-gray-500">AI-Powered DeFi Agent with XMTP Negotiation</p>
-              </div>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_34%),linear-gradient(180deg,_#08111b_0%,_#0f172a_48%,_#111827_100%)] text-slate-100">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-6 rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-sky-950/30 backdrop-blur">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-3xl space-y-3">
+              <p className="text-xs uppercase tracking-[0.4em] text-sky-300">Cerberus Governance Console</p>
+              <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Production demo for governed vault execution on Base Sepolia.</h1>
+              <p className="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                XMTP carries the proposal intent, World ID proves the human, x402 charges for authorization issuance, and the vault refuses outflows without Cerberus co-signing.
+              </p>
             </div>
-            <div className="flex items-center gap-4">
-              {address && hasPendingProposals && (
-                <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium animate-pulse">
-                  {pendingProposals.length} pending proposal{pendingProposals.length > 1 ? 's' : ''}
-                </span>
-              )}
-              {!address && (
-                <button
-                  onClick={openConnectModal}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                >
-                  Connect Wallet
-                </button>
-              )}
+            <div className="flex flex-col items-start gap-3 rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+              <ConnectButton />
+              <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                <span className="rounded-full border border-white/10 px-3 py-1">Exec chain: Base Sepolia</span>
+                <span className="rounded-full border border-white/10 px-3 py-1">x402 default: {publicEnv.NEXT_PUBLIC_DEFAULT_PAYMENT_NETWORK}</span>
+                <span className="rounded-full border border-white/10 px-3 py-1">World ID v4</span>
+                <span className="rounded-full border border-white/10 px-3 py-1">XMTP real agent path</span>
+              </div>
             </div>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {!address ? (
-          <div className="text-center py-20">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-              <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Autonomous DeFi Intelligence
-            </h2>
-            <p className="text-lg text-gray-600 mb-4 max-w-2xl mx-auto">
-              Cerberus scans markets, discovers opportunities, and proposes trades via XMTP.
-            </p>
-            <p className="text-md text-blue-600 mb-8 max-w-2xl mx-auto font-medium">
-              The agent negotiates with you through XMTP - approve proposals in chat, 
-              pay via x402, and execute trades securely.
-            </p>
-            <button
-              onClick={openConnectModal}
-              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 font-semibold text-lg transition-all"
-            >
-              Connect Wallet to Start
-            </button>
-            
-            {/* Flow diagram */}
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500">
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-2">🤖</div>
-                <span>Agent Scans</span>
-              </div>
-              <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mb-2">💬</div>
-                <span>XMTP Proposal</span>
-              </div>
-              <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">✅</div>
-                <span>You Approve</span>
-              </div>
-              <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-2">🔐</div>
-                <span>World ID (if $1000+)</span>
-              </div>
-              <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center mb-2">💳</div>
-                <span>x402 Payment</span>
-              </div>
-              <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-2">🚀</div>
-                <span>Trade Executed</span>
-              </div>
-            </div>
-          </div>
+        {!isConnected ? (
+          <section className="rounded-[2rem] border border-white/10 bg-slate-950/40 p-8 text-center text-slate-300">
+            Connect a wallet to create a governed vault, link to the XMTP agent, and run the full World ID + x402 + on-chain authorization flow.
+          </section>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left column - Agent Status & World ID */}
-            <div className="space-y-6">
-              <ErrorBoundary>
-                <AgentStatus />
-              </ErrorBoundary>
-              <ErrorBoundary>
-                <WorldIDVerify />
-              </ErrorBoundary>
-              
-              {/* XMTP Negotiation Status */}
-              <div className="p-4 bg-white rounded-xl border border-gray-200">
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  Negotiation Status
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Pending Proposals:</span>
-                    <span className="font-medium text-amber-600">{pendingProposals.length}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Approved & Queued:</span>
-                    <span className="font-medium text-green-600">{executionQueue.length}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">World ID Status:</span>
-                    <span className={`font-medium ${worldIDVerified ? 'text-green-600' : 'text-amber-600'}`}>
-                      {worldIDVerified ? '✓ Gate Verified' : '⚠ Per-Trade Mode'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    High-value trades (&gt;$1000) require biometric verification per transaction.
-                  </p>
-                  {activePayment && (
-                    <div className="mt-3 p-2 bg-indigo-50 rounded border border-indigo-200">
-                      <p className="text-xs text-indigo-700">Active x402 Payment:</p>
-                      <p className="text-sm font-medium text-indigo-900">{activePayment.amount} ETH</p>
-                      <p className="text-xs text-indigo-600">Status: {activePayment.status}</p>
-                    </div>
-                  )}
+          <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+            <section className="space-y-6">
+              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
+                <h2 className="text-lg font-semibold text-white">Vault setup</h2>
+                <p className="mt-1 text-sm text-slate-400">Deploy one governed vault per owner. All outflows require Cerberus authorization.</p>
+                <div className="mt-4 space-y-3">
+                  <input
+                    value={recoveryAddress}
+                    onChange={(event) => setRecoveryAddress(event.target.value)}
+                    placeholder="Recovery address"
+                    className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm outline-none ring-0 placeholder:text-slate-500"
+                  />
+                  <button onClick={createVault} className="w-full rounded-2xl bg-amber-400 px-4 py-3 font-semibold text-slate-950 hover:bg-amber-300">
+                    {activeVault ? 'Vault deployed' : 'Create governed vault'}
+                  </button>
+                  {activeVault ? (
+                    <button onClick={bootstrapVault} className="w-full rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white hover:bg-white/5">
+                      Bootstrap allowlists and approvals
+                    </button>
+                  ) : null}
+                  {bootstrapStatus ? <p className="text-xs text-sky-300">{bootstrapStatus}</p> : null}
+                </div>
+                <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">
+                  <p className="font-medium text-white">Vault</p>
+                  <p className="mt-1 break-all">{activeVault ?? 'Not deployed yet'}</p>
                 </div>
               </div>
-            </div>
 
-            {/* Center/Right column - XMTP Negotiation Layer (Primary) */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Tabs - Negotiation is now primary */}
-              <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
-                <button
-                  onClick={() => setActiveTab('negotiation')}
-                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'negotiation' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  XMTP Negotiation
-                  {pendingProposals.length > 0 && (
-                    <span className="ml-1.5 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">
-                      {pendingProposals.length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => setActiveTab('opportunities')}
-                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'opportunities' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  All Opportunities
-                  {opportunities.length > 0 && (
-                    <span className="ml-1.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
-                      {opportunities.length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings')}
-                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'settings' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Settings
-                </button>
-              </div>
-
-              {/* Tab Content - XMTP Negotiation is Primary */}
-              {activeTab === 'negotiation' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
+                <h2 className="text-lg font-semibold text-white">Funding and status</h2>
+                <div className="mt-4 space-y-3 text-sm text-slate-300">
+                  <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
                     <div>
-                      <h2 className="text-lg font-semibold text-gray-900">XMTP Negotiation Layer</h2>
-                      <p className="text-sm text-gray-500">Agent sends proposals → You approve/reject via XMTP</p>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">ETH</p>
+                      <p className="mt-2 text-lg font-semibold text-white">{vaultStatus?.balances.eth ?? '0.0'}</p>
                     </div>
-                    <button
-                      onClick={scan}
-                      disabled={isScanning}
-                      className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {isScanning ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Scanning...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                          Scan Markets
-                        </>
-                      )}
-                    </button>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">USDC</p>
+                      <p className="mt-2 text-lg font-semibold text-white">{vaultStatus?.balances.usdc ?? '0.0'}</p>
+                    </div>
                   </div>
-
-                  <ErrorBoundary>
-                    <XMTPChat 
-                      className="h-[600px]" 
-                      onApprove={handleApprove}
-                      onReject={handleReject}
-                      onExecute={handleExecute}
-                    />
-                  </ErrorBoundary>
+                  <input
+                    value={depositAmount}
+                    onChange={(event) => setDepositAmount(event.target.value)}
+                    placeholder="Deposit ETH"
+                    className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm outline-none placeholder:text-slate-500"
+                  />
+                  <button onClick={fundVault} disabled={!activeVault} className="w-full rounded-2xl border border-white/15 px-4 py-3 font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">
+                    Fund vault with ETH
+                  </button>
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-400">
+                    <p>Owner: {vaultStatus?.owner ?? '—'}</p>
+                    <p className="mt-1">Recovery: {vaultStatus?.recoveryAddress ?? '—'}</p>
+                    <p className="mt-1">Paused: {vaultStatus?.paused ? 'yes' : 'no'}</p>
+                  </div>
                 </div>
-              )}
+              </div>
 
-              {activeTab === 'opportunities' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-gray-900">Market Opportunities</h2>
-                    <button
-                      onClick={scan}
-                      disabled={isScanning}
-                      className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {isScanning ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Scanning...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          Refresh
-                        </>
-                      )}
+              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
+                <h2 className="text-lg font-semibold text-white">XMTP control plane</h2>
+                <p className="mt-1 text-sm text-slate-400">The web client talks to the persistent agent inbox, while the worker streams approvals and proposal state.</p>
+                <button onClick={connectXmtp} className="mt-4 w-full rounded-2xl bg-sky-500 px-4 py-3 font-semibold text-white hover:bg-sky-400">
+                  {xmtp.client ? 'XMTP connected' : 'Connect XMTP inbox'}
+                </button>
+                {xmtp.error ? <p className="mt-2 text-xs text-rose-300">{xmtp.error}</p> : null}
+                <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">
+                  <p>Agent address: {xmtp.agentAddress}</p>
+                  <p className="mt-1">Messages synced: {xmtp.messages.length}</p>
+                </div>
+              </div>
+
+              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
+                <h2 className="text-lg font-semibold text-white">Manual withdrawal</h2>
+                <p className="mt-1 text-sm text-slate-400">Withdrawals stay governed: fresh World ID plus owner and Cerberus signatures.</p>
+                <div className="mt-4 space-y-3">
+                  <input
+                    value={withdrawRecipient}
+                    onChange={(event) => setWithdrawRecipient(event.target.value)}
+                    placeholder="Recipient (defaults to connected wallet)"
+                    className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm outline-none placeholder:text-slate-500"
+                  />
+                  <input
+                    value={withdrawAmount}
+                    onChange={(event) => setWithdrawAmount(event.target.value)}
+                    placeholder="Amount in ETH"
+                    className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm outline-none placeholder:text-slate-500"
+                  />
+                  {address && activeVault ? (
+                    <WorldIdActionButton
+                      actionType="withdraw"
+                      wallet={address}
+                      vault={activeVault}
+                      nonce={crypto.randomUUID()}
+                      onVerified={({ signalHash }) => setWithdrawSignalHash(signalHash)}
+                    />
+                  ) : null}
+                  <button onClick={withdrawFromVault} disabled={!activeVault || !withdrawSignalHash} className="w-full rounded-2xl border border-white/15 px-4 py-3 font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">
+                    Execute governed withdrawal
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
+                <h2 className="text-lg font-semibold text-white">Recovery path</h2>
+                <p className="mt-1 text-sm text-slate-400">Recovery is constrained to the pre-registered address and still requires Cerberus authorization.</p>
+                {address && activeVault && recoveryAddress ? (
+                  <div className="mt-4 space-y-3">
+                    <WorldIdActionButton
+                      actionType="recover"
+                      wallet={address}
+                      vault={activeVault}
+                      nonce={crypto.randomUUID()}
+                      recoveryAddress={recoveryAddress}
+                      onVerified={({ signalHash }) => setRecoverySignalHash(signalHash)}
+                    />
+                    <button onClick={requestRecovery} disabled={!recoverySignalHash} className="w-full rounded-2xl border border-white/15 px-4 py-3 font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">
+                      Request recovery timelock
                     </button>
                   </div>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-500">Set a recovery address first.</p>
+                )}
+              </div>
+            </section>
 
-                  {opportunities.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-                      <p className="text-gray-500 mb-4">No opportunities found yet</p>
-                      <button
-                        onClick={scan}
-                        disabled={isScanning}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {isScanning ? 'Scanning...' : 'Scan Markets'}
-                      </button>
+            <section className="space-y-6">
+              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Agent proposals</h2>
+                    <p className="mt-1 text-sm text-slate-400">Create proposals, push them to the XMTP agent, then complete the World ID and x402 gates before on-chain execution.</p>
+                  </div>
+                  <button onClick={triggerScan} disabled={!activeVault} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
+                    Run AgentKit scan
+                  </button>
+                </div>
+                {scanStatus ? <p className="mt-3 text-sm text-sky-300">{scanStatus}</p> : null}
+              </div>
+
+              <div className="space-y-4">
+                {proposals.length === 0 ? (
+                  <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-slate-950/40 p-10 text-center text-slate-400">
+                    No proposals staged yet. Deploy a vault, bootstrap it, connect XMTP, and run the AgentKit scan.
+                  </div>
+                ) : (
+                  proposals.map((proposal) => {
+                    const nonce = actionNonce[proposal.proposal.proposalId] ?? crypto.randomUUID();
+                    return (
+                      <article key={proposal.proposal.proposalId} className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                              <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-sky-200">{proposal.status}</span>
+                              <span className="rounded-full border border-white/10 px-3 py-1">Risk {proposal.proposal.risk.score}</span>
+                              <span className="rounded-full border border-white/10 px-3 py-1">Confidence {(proposal.proposal.risk.confidence * 100).toFixed(0)}%</span>
+                              <span className="rounded-full border border-white/10 px-3 py-1">Payment {proposal.proposal.paymentRequirement.paymentNetwork}</span>
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-semibold text-white">Proposal {proposal.proposal.proposalId}</h3>
+                              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-300">{proposal.proposal.risk.analysisSummary}</p>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                              <Metric label="Proposal hash" value={`${proposal.proposalHash.slice(0, 10)}...${proposal.proposalHash.slice(-8)}`} />
+                              <Metric label="Amount in" value={formatEther(BigInt(proposal.proposal.action.amountIn)) + ' ETH'} />
+                              <Metric label="Min amount out" value={proposal.proposal.action.minAmountOut} />
+                              <Metric label="Expires" value={new Date(proposal.proposal.timing.expiresAt).toLocaleTimeString()} />
+                            </div>
+                          </div>
+                          <div className="w-full max-w-md space-y-3 rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-4">
+                            <div className="flex flex-wrap gap-2">
+                              <button onClick={() => approveProposal(proposal)} disabled={!xmtp.client} className="rounded-full bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-40">Approve via XMTP</button>
+                              <button onClick={() => rejectProposal(proposal)} disabled={!xmtp.client} className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">Reject</button>
+                            </div>
+                            {address && activeVault ? (
+                              <WorldIdActionButton
+                                actionType="execute"
+                                wallet={address}
+                                vault={activeVault}
+                                nonce={nonce}
+                                proposalHash={proposal.proposalHash}
+                                onVerified={({ signalHash }) => {
+                                  setVerificationSignals((current) => ({ ...current, [proposal.proposal.proposalId]: signalHash }));
+                                  setActionNonce((current) => ({ ...current, [proposal.proposal.proposalId]: nonce }));
+                                }}
+                              />
+                            ) : null}
+                            <button onClick={() => settlePayment(proposal)} disabled={!x402.isReady} className="w-full rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">Pay x402 authorization fee</button>
+                            <button onClick={() => executeProposal(proposal)} disabled={!verificationSignals[proposal.proposal.proposalId]} className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40">Execute on-chain through vault</button>
+                            {proposal.executionTxHash ? <p className="text-xs text-emerald-300">Executed: {proposal.executionTxHash}</p> : null}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">XMTP transcript</h2>
+                    <p className="mt-1 text-sm text-slate-400">Live transport between the browser owner inbox and the persistent Cerberus agent inbox.</p>
+                  </div>
+                  <button onClick={xmtp.refreshMessages} className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/5">Refresh</button>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {xmtp.messages.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-slate-500">
+                      No XMTP messages yet.
                     </div>
                   ) : (
-                    <div className="grid gap-4">
-                      {opportunities.map((opp) => (
-                        <ErrorBoundary key={opp.id}>
-                          <OpportunityCard
-                            opportunity={opp}
-                            onReject={(id) => handleReject(id, 'Rejected from opportunities list')}
-                          />
-                        </ErrorBoundary>
-                      ))}
-                    </div>
+                    xmtp.messages.map((message) => (
+                      <div key={message.id} className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm text-slate-200">
+                        <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                          <span>{message.senderInboxId}</span>
+                          <span>{new Date(message.sentAt).toLocaleString()}</span>
+                        </div>
+                        <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs text-slate-200">{message.content}</pre>
+                      </div>
+                    ))
                   )}
                 </div>
-              )}
-
-              {activeTab === 'settings' && (
-                <div className="p-6 bg-white rounded-xl border border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Settings</h2>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="font-medium text-gray-900">Wallet Address</p>
-                      <p className="text-sm text-gray-600 font-mono mt-1">{address}</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="font-medium text-gray-900">XMTP Negotiation Layer</p>
-                      <p className="text-sm text-gray-600 mt-1">Enabled - Agent sends proposals via XMTP</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="font-medium text-gray-900">World ID Security</p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Per-transaction biometric verification for trades &gt; $1,000.
-                        Even with stolen keys, attackers can't trade without your iris scan.
-                      </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="font-medium text-gray-900">Network</p>
-                      <p className="text-sm text-gray-600 mt-1">Base Mainnet</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="font-medium text-gray-900">Version</p>
-                      <p className="text-sm text-gray-600 mt-1">Cerberus v0.1.0 (XMTP Negotiation)</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            </section>
           </div>
         )}
-      </main>
+      </div>
+    </main>
+  );
+}
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <p>Powered by AgentKit, XMTP (Negotiation Layer), World ID, and x402</p>
-            <p>Built for AgentKit Hackathon 2025</p>
-          </div>
-        </div>
-      </footer>
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-white">{value}</p>
     </div>
   );
 }

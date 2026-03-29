@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cerberus - AI-Powered DeFi Agent",
-  description: "Autonomous DeFi agent with World ID verification, XMTP messaging, and x402 payments",
+  title: "Cerberus - Governed Vault Security",
+  description: "Production demo for governed vault execution with World ID, XMTP, x402, and Base Sepolia enforcement.",
 };
 
 export default function RootLayout({

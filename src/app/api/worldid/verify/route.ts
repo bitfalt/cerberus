@@ -1,126 +1,124 @@
-// app/api/worldid/verify/route.ts - World ID verification endpoint
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import type { IDKitResult } from "@worldcoin/idkit";
+import { z } from "zod";
+import { api } from "../../../../../convex/_generated/api";
+import { getConvexServerClient } from "@/lib/convex/server-client";
+import { TTL_MS } from "@/lib/protocol/constants";
+import { createWorldSignal, toWorldAction, verifyWorldIdResult, type WorldActionType } from "@/lib/worldid";
+import { enforceRateLimit } from "@/lib/server/rate-limit";
 
-interface VerifyRequest {
-  proof: {
-    merkle_root: string;
-    nullifier_hash: string;
-    proof: string;
-    verification_level: 'orb' | 'device';
-  };
-  signal: string;
-}
+const getSchema = z.object({
+  wallet: z.string(),
+  action: z.string().optional(),
+  signalHash: z.string().optional(),
+  proposalHash: z.string().optional(),
+});
 
-// In-memory store for development (replace with Redis/DB in production)
-const verificationStore = new Map<string, { nullifierHash: string; verifiedAt: number }>();
+const postSchema = z.object({
+  actionType: z.enum(["execute", "withdraw", "recover"]),
+  wallet: z.string(),
+  vault: z.string(),
+  proposalHash: z.string().optional(),
+  recoveryAddress: z.string().optional(),
+  nonce: z.string().min(1),
+  idkitResponse: z.custom<IDKitResult>(),
+});
 
-// Check verification status (GET)
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const wallet = searchParams.get('wallet');
+    const url = new URL(request.url);
+    const args = getSchema.parse({
+      wallet: url.searchParams.get("wallet"),
+      action: url.searchParams.get("action") ?? undefined,
+      signalHash: url.searchParams.get("signalHash") ?? undefined,
+      proposalHash: url.searchParams.get("proposalHash") ?? undefined,
+    });
 
-    if (!wallet) {
-      return NextResponse.json(
-        { error: 'Missing wallet address' },
-        { status: 400 }
-      );
-    }
+    const client = getConvexServerClient();
+    const verification = args.action
+      ? await client.query(api.worldid.getFreshVerification, {
+          walletAddress: args.wallet.toLowerCase(),
+          action: args.action,
+          signalHash: args.signalHash,
+          proposalHash: args.proposalHash,
+          now: Date.now(),
+        })
+      : await client.query(api.worldid.getWalletBinding, {
+          walletAddress: args.wallet.toLowerCase(),
+        });
 
-    const normalizedWallet = wallet.toLowerCase();
-    const stored = verificationStore.get(normalizedWallet);
-    
     return NextResponse.json({
-      verified: !!stored,
-      wallet: normalizedWallet,
-      nullifierHash: stored?.nullifierHash || null,
+      verified: Boolean(verification),
+      verification,
     });
   } catch (error) {
-    console.error('World ID check error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: error instanceof Error ? error.message : "Failed to load World ID verification" },
+      { status: 400 }
     );
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body: VerifyRequest = await request.json();
-    const { proof, signal } = body;
+    const body = postSchema.parse(await request.json());
+    await enforceRateLimit(`rate:worldid:verify:${body.wallet.toLowerCase()}`, 10, 60);
 
-    if (!proof || !signal) {
-      return NextResponse.json(
-        { error: 'Missing proof or signal' },
-        { status: 400 }
-      );
-    }
-
-    const appId = process.env.NEXT_PUBLIC_WORLDCOIN_APP_ID;
-    const apiKey = process.env.WORLDID_API_KEY;
-
-    if (!appId || !apiKey) {
-      return NextResponse.json(
-        { error: 'World ID not configured' },
-        { status: 500 }
-      );
-    }
-
-    // Check if nullifier already used (prevent Sybil attacks)
-    for (const [wallet, data] of verificationStore.entries()) {
-      if (data.nullifierHash === proof.nullifier_hash && wallet !== signal.toLowerCase()) {
-        return NextResponse.json(
-          { error: 'This World ID has already verified a different wallet' },
-          { status: 409 }
-        );
-      }
-    }
-
-    // Verify with World ID API v2
-    const response = await fetch('https://developer.worldcoin.org/api/v2/verify', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        app_id: appId,
-        action: 'cerberus_trade_approval',
-        signal,
-        proof: proof.proof,
-        merkle_root: proof.merkle_root,
-        nullifier_hash: proof.nullifier_hash,
-        verification_level: proof.verification_level,
-      }),
+    const expectedAction = toWorldAction(body.actionType as WorldActionType);
+    const { signalHash } = createWorldSignal({
+      actionType: body.actionType,
+      wallet: body.wallet,
+      vault: body.vault,
+      proposalHash: body.proposalHash,
+      recoveryAddress: body.recoveryAddress,
+      nonce: body.nonce,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: errorData.message || 'World ID verification failed' },
-        { status: response.status }
-      );
+    if (!("action" in body.idkitResponse) || body.idkitResponse.action !== expectedAction) {
+      throw new Error("World ID action mismatch");
     }
 
-    const result = await response.json();
-
-    // Store verification in memory (replace with Convex/DB in production)
-    if (result.success || result.success === undefined) {
-      verificationStore.set(signal.toLowerCase(), {
-        nullifierHash: proof.nullifier_hash,
-        verifiedAt: Date.now(),
-      });
+    const primaryResponse = body.idkitResponse.responses?.[0];
+    if (!primaryResponse) {
+      throw new Error("World ID response payload is empty");
     }
+
+    if (primaryResponse.signal_hash && primaryResponse.signal_hash !== signalHash) {
+      throw new Error("World ID signal mismatch");
+    }
+
+    const verification = await verifyWorldIdResult(body.idkitResponse);
+
+    const client = getConvexServerClient();
+    const recorded = await client.mutation(api.worldid.recordVerification, {
+      walletAddress: body.wallet.toLowerCase(),
+      vaultAddress: body.vault.toLowerCase(),
+      action: expectedAction,
+      signalHash,
+      proposalHash: body.proposalHash,
+      recoveryAddress: body.recoveryAddress?.toLowerCase(),
+      nullifier: verification.nullifier,
+      requestNonce: body.idkitResponse.nonce,
+      verificationLevel: primaryResponse.identifier === "orb" ? "orb" : "device",
+      protocolVersion: body.idkitResponse.protocol_version,
+      verifiedAt: Date.now(),
+      expiresAt: Date.now() + TTL_MS.verificationFreshness,
+      metadata: {
+        appId: process.env.NEXT_PUBLIC_WORLDCOIN_APP_ID,
+        environment: verification.payload.environment,
+      },
+    });
 
     return NextResponse.json({
-      verified: result.success ?? true,
-      nullifierHash: proof.nullifier_hash,
+      verified: true,
+      verificationId: recorded.verificationId,
+      nullifier: verification.nullifier,
+      signalHash,
     });
   } catch (error) {
-    console.error('World ID verification error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: error instanceof Error ? error.message : "World ID verification failed" },
+      { status: 400 }
     );
   }
 }
