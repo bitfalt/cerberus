@@ -473,6 +473,7 @@ export default function Home() {
   });
 
   const currentVaultAddress = vaultAddress as `0x${string}` | undefined;
+  const effectiveRecoveryAddress = recoveryAddress || vaultStatus?.recoveryAddress || '';
 
   const activeVault = useMemo<`0x${string}` | null>(() => {
     if (!currentVaultAddress || currentVaultAddress === '0x0000000000000000000000000000000000000000') {
@@ -534,6 +535,18 @@ export default function Home() {
     }, 0);
     return () => window.clearTimeout(timeout);
   }, [activeVault, refreshVaultStatus]);
+
+  useEffect(() => {
+    if (!vaultStatus?.recoveryAddress) {
+      return;
+    }
+    if (recoveryAddress && recoveryAddress.toLowerCase() === vaultStatus.recoveryAddress.toLowerCase()) {
+      return;
+    }
+    if (!recoveryAddress) {
+      setRecoveryAddress(vaultStatus.recoveryAddress);
+    }
+  }, [vaultStatus?.recoveryAddress, recoveryAddress]);
 
   useEffect(() => {
     if (!address) return;
@@ -827,13 +840,13 @@ export default function Home() {
   };
 
   const requestRecovery = async () => {
-    if (!address || !activeVault || !recoveryAddress || !recoverySignalHash) return;
+    if (!address || !activeVault || !effectiveRecoveryAddress || !recoverySignalHash) return;
     const response = await fetch(`/api/vault/${activeVault}/recovery-authorize`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         wallet: address,
-        recoveryAddress,
+        recoveryAddress: effectiveRecoveryAddress,
         nonce: recoveryNonce,
         signalHash: recoverySignalHash,
       }),
@@ -1270,16 +1283,16 @@ export default function Home() {
                         variant="rose"
                       />
                       
-                      {address && activeVault && recoveryAddress ? (
-                        <div className="space-y-3">
-                          <WorldIdActionButton
-                            actionType="recover"
-                            wallet={address}
-                            vault={activeVault}
-                            nonce={recoveryNonce}
-                            recoveryAddress={recoveryAddress}
-                            onVerified={({ signalHash }) => setRecoverySignalHash(signalHash)}
-                          />
+                {address && activeVault && effectiveRecoveryAddress ? (
+                  <div className="space-y-3">
+                    <WorldIdActionButton
+                      actionType="recover"
+                      wallet={address}
+                      vault={activeVault}
+                      nonce={recoveryNonce}
+                      recoveryAddress={effectiveRecoveryAddress}
+                      onVerified={({ signalHash }) => setRecoverySignalHash(signalHash)}
+                    />
                           <button 
                             onClick={requestRecovery} 
                             disabled={!recoverySignalHash}

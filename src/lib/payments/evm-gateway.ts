@@ -57,6 +57,26 @@ export class EvmPaymentGateway implements PaymentGateway {
   }
 
   async createRequirements(intent: PaymentIntent): Promise<PaymentRequirements> {
+    const extra: Record<string, string> = {
+      payment_id: intent.paymentId,
+      proposal_id: intent.proposalId,
+      proposal_hash: intent.proposalHash,
+      wallet: intent.wallet,
+      vault: intent.vault,
+      payment_network: intent.paymentNetwork,
+      execution_chain: intent.executionChain,
+    };
+
+    // Base Sepolia USDC uses EIP-3009, so x402 client-side payload creation
+    // needs the token EIP-712 domain parameters to sign correctly.
+    if (
+      this.config.network === "eip155:84532" &&
+      intent.asset.toLowerCase() === publicEnv.NEXT_PUBLIC_BASE_SEPOLIA_USDC?.toLowerCase()
+    ) {
+      extra.name = "USDC";
+      extra.version = "2";
+    }
+
     return {
       scheme: "exact",
       network: this.config.network,
@@ -64,15 +84,7 @@ export class EvmPaymentGateway implements PaymentGateway {
       asset: intent.asset,
       amount: intent.amount,
       payTo: getCerberusAccount().address,
-      extra: {
-        payment_id: intent.paymentId,
-        proposal_id: intent.proposalId,
-        proposal_hash: intent.proposalHash,
-        wallet: intent.wallet,
-        vault: intent.vault,
-        payment_network: intent.paymentNetwork,
-        execution_chain: intent.executionChain,
-      },
+      extra,
     };
   }
 
