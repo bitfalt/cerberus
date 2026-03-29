@@ -20,6 +20,7 @@ type RequestState = {
   signalHash: string;
   requestNonce: string;
   rpContext: RpContext;
+  environment: 'production' | 'staging';
 };
 
 export function WorldIdActionButton({ actionType, wallet, vault, nonce, proposalHash, recoveryAddress, onVerified }: Props) {
@@ -56,6 +57,7 @@ export function WorldIdActionButton({ actionType, wallet, vault, nonce, proposal
         signalHash: payload.signalHash,
         requestNonce: payload.requestNonce,
         rpContext: payload.rp_context,
+        environment: payload.environment === 'staging' ? 'staging' : 'production',
       });
       setOpen(true);
     } catch (requestError) {
@@ -114,8 +116,9 @@ export function WorldIdActionButton({ actionType, wallet, vault, nonce, proposal
           app_id={publicEnv.NEXT_PUBLIC_WORLDCOIN_APP_ID as `app_${string}`}
           action={requestState.action}
           rp_context={requestState.rpContext}
+          environment={requestState.environment}
           preset={orbLegacy({ signal: requestState.signal })}
-          allow_legacy_proofs={false}
+          allow_legacy_proofs={true}
           handleVerify={handleVerify}
           onError={(widgetError) => {
             setError(String(widgetError));

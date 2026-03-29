@@ -31,10 +31,16 @@ export async function POST(request: Request) {
     return NextResponse.json({
       rp_context: rpContext,
       app_id: process.env.NEXT_PUBLIC_WORLDCOIN_APP_ID,
+      environment: "production",
       action: worldAction,
       signal,
       signalHash,
       requestNonce: rpContext.nonce,
+      requestDebug: {
+        rpId: rpContext.rp_id,
+        createdAt: rpContext.created_at,
+        expiresAt: rpContext.expires_at,
+      },
     });
   } catch (error) {
     return NextResponse.json(
