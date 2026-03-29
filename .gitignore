@@ -19,6 +19,9 @@
 
 # production
 /build
+/dist
+contracts/artifacts
+contracts/cache
 
 # misc
 .DS_Store

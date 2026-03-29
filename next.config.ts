@@ -6,14 +6,13 @@ const nextConfig: NextConfig = {
     'ioredis', 
     '@coinbase/agentkit', 
     '@coinbase/agentkit-langchain',
-    '@xmtp/user-preferences-bindings-wasm'
+    '@xmtp/user-preferences-bindings-wasm',
+    '@xmtp/node-sdk',
+    '@worldcoin/idkit-server'
   ],
-  // Ensure env vars are available
-  env: {
-    NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
-  },
   // Turbopack config to handle XMTP
   turbopack: {
+    root: process.cwd(),
     // Externalize XMTP on server side
     resolveAlias: {
       '@xmtp/xmtp-js': 'commonjs @xmtp/xmtp-js',
