@@ -83,6 +83,15 @@ type HealthStatus = {
   error?: string;
 };
 
+type WorldVerificationResponse = {
+  verified: boolean;
+  verification?: {
+    signalHash: string;
+    expiresAt: number;
+  } | null;
+  error?: string;
+};
+
 type TabType = 'overview' | 'vault' | 'actions';
 
 function currentTimestamp() {
@@ -729,67 +738,118 @@ export default function Home() {
     }
   };
 
+  const ensureExecuteNonce = useCallback((proposalId: string) => {
+    const existing = actionNonce[proposalId];
+    if (existing) {
+      return existing;
+    }
+
+    const created = crypto.randomUUID();
+    setActionNonce((current) => ({
+      ...current,
+      [proposalId]: current[proposalId] ?? created,
+    }));
+    return created;
+  }, [actionNonce]);
+
+  const getFreshExecutionVerification = useCallback(async (proposal: ProposalRecord) => {
+    if (!address) {
+      throw new Error('Connect wallet before executing a proposal');
+    }
+
+    const localSignalHash = verificationSignals[proposal.proposal.proposalId];
+    if (localSignalHash) {
+      return localSignalHash;
+    }
+
+    const params = new URLSearchParams({
+      wallet: address,
+      action: 'cerberus-vault-execute',
+      proposalHash: proposal.proposalHash,
+    });
+    const response = await fetch(`/api/worldid/verify?${params.toString()}`);
+    const payload = (await response.json()) as WorldVerificationResponse;
+    if (!response.ok) {
+      throw new Error(payload.error ?? 'Failed to rehydrate World ID verification');
+    }
+
+    if (!payload.verified || !payload.verification?.signalHash) {
+      throw new Error('Fresh World ID verification is required');
+    }
+
+    setVerificationSignals((current) => ({
+      ...current,
+      [proposal.proposal.proposalId]: payload.verification!.signalHash,
+    }));
+
+    return payload.verification.signalHash;
+  }, [address, verificationSignals]);
+
   const executeProposal = async (proposal: ProposalRecord) => {
     if (!address || !activeVault) return;
-    const nonce = actionNonce[proposal.proposal.proposalId] ?? crypto.randomUUID();
-    const signalHash = verificationSignals[proposal.proposal.proposalId];
-    if (!signalHash) {
-      throw new Error('World ID verification required before execution');
+    try {
+      const proposalId = proposal.proposal.proposalId;
+      const nonce = ensureExecuteNonce(proposalId);
+      const signalHash = await getFreshExecutionVerification(proposal);
+
+      const authResponse = await fetch(`/api/proposals/${proposalId}/authorize`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          wallet: address,
+          vault: activeVault,
+          nonce,
+          signalHash,
+        }),
+      });
+      const authPayload = await authResponse.json();
+      if (!authResponse.ok) {
+        throw new Error(authPayload.error ?? 'Failed to authorize proposal');
+      }
+
+      const typed = toExecutionTypedData(authPayload.authorization);
+      const ownerSignature = await signTypedData({
+        domain: cerberusDomain(84532, activeVault) as never,
+        types: executionAuthorizationTypes as never,
+        primaryType: typed.primaryType as never,
+        message: typed.message as never,
+      });
+
+      const txHash = await writeContractAsync({
+        address: activeVault,
+        abi: cerberusVaultAbi,
+        functionName: 'executeAuthorized',
+        args: [authPayload.authorization, ownerSignature, authPayload.cerberusSignature, proposal.proposal.action.encodedCall],
+      });
+
+      if (publicClient) {
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
+      }
+
+      await fetch(`/api/proposals/${proposal.proposal.proposalId}/executed`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ txHash }),
+      });
+
+      await xmtp.sendJsonMessage({
+        type: 'EXECUTION_CONFIRMED',
+        version: 1,
+        proposalId: proposal.proposal.proposalId,
+        proposalHash: proposal.proposalHash,
+        vault: proposal.vault,
+        wallet: proposal.wallet,
+        timestamp: currentTimestamp(),
+        txHash,
+      });
+
+      await refreshProposals();
+      await refreshVaultStatus();
+      setScanStatus('Proposal executed on-chain successfully.');
+    } catch (error) {
+      setScanStatus(error instanceof Error ? error.message : 'Failed to execute proposal');
+      throw error;
     }
-
-    const authResponse = await fetch(`/api/proposals/${proposal.proposal.proposalId}/authorize`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        wallet: address,
-        vault: activeVault,
-        nonce,
-        signalHash,
-      }),
-    });
-    const authPayload = await authResponse.json();
-    if (!authResponse.ok) {
-      throw new Error(authPayload.error ?? 'Failed to authorize proposal');
-    }
-
-    const typed = toExecutionTypedData(authPayload.authorization);
-    const ownerSignature = await signTypedData({
-      domain: cerberusDomain(84532, activeVault) as never,
-      types: executionAuthorizationTypes as never,
-      primaryType: typed.primaryType as never,
-      message: typed.message as never,
-    });
-
-    const txHash = await writeContractAsync({
-      address: activeVault,
-      abi: cerberusVaultAbi,
-      functionName: 'executeAuthorized',
-      args: [authPayload.authorization, ownerSignature, authPayload.cerberusSignature, proposal.proposal.action.encodedCall],
-    });
-
-    if (publicClient) {
-      await publicClient.waitForTransactionReceipt({ hash: txHash });
-    }
-
-    await fetch(`/api/proposals/${proposal.proposal.proposalId}/executed`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ txHash }),
-    });
-
-    await xmtp.sendJsonMessage({
-      type: 'EXECUTION_CONFIRMED',
-      version: 1,
-      proposalId: proposal.proposal.proposalId,
-      proposalHash: proposal.proposalHash,
-      vault: proposal.vault,
-      wallet: proposal.wallet,
-      timestamp: currentTimestamp(),
-      txHash,
-    });
-
-    await refreshProposals();
-    await refreshVaultStatus();
   };
 
   const withdrawFromVault = async () => {

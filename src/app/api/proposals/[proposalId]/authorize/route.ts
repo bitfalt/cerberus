@@ -10,6 +10,7 @@ import { getCerberusAccount } from "@/lib/server/wallet";
 import { getPaymentIntentByProposal, getProposalRecord, reserveNonce, updateProposalRecord } from "@/lib/server/workflow";
 import { TTL_MS } from "@/lib/protocol/constants";
 import { durationMsToSeconds, nowUnixSeconds } from "@/lib/time";
+import { toWorldAction } from "@/lib/worldid";
 
 const bodySchema = z.object({
   wallet: z.string(),
@@ -41,7 +42,7 @@ export async function POST(request: Request, context: { params: Promise<{ propos
     const convex = getConvexServerClient();
     const worldVerification = await convex.query(api.worldid.getFreshVerification, {
       walletAddress: body.wallet.toLowerCase(),
-      action: "cerberus_vault_execute",
+      action: toWorldAction("execute"),
       signalHash: body.signalHash,
       proposalHash: proposalRecord.proposalHash,
       now: Date.now(),

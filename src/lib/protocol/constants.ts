@@ -15,9 +15,9 @@ export const OPPORTUNITY_CHAIN = {
 
 export const PAYMENT_NETWORKS = ["base-sepolia", "world"] as const;
 export const WORLD_ID_ACTIONS = [
-  "cerberus_vault_execute",
-  "cerberus_vault_withdraw",
-  "cerberus_vault_recover",
+  "cerberus-vault-execute",
+  "cerberus-vault-withdraw",
+  "cerberus-vault-recover",
 ] as const;
 
 export const XMTP_MESSAGE_TYPES = [
@@ -37,7 +37,7 @@ export const TTL_MS = {
   proposal: 24 * 60 * 60 * 1000,
   payment: 15 * 60 * 1000,
   authSession: 10 * 60 * 1000,
-  verificationFreshness: 5 * 60 * 1000,
+  verificationFreshness: 15 * 60 * 1000,
   recoveryDelay: 30 * 60 * 1000,
 } as const;
 
