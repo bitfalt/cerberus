@@ -87,6 +87,304 @@ function currentTimestamp() {
   return Date.now();
 }
 
+// Inline SVG Icons
+const Icons = {
+  Shield: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  ),
+  Activity: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
+    </svg>
+  ),
+  Database: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+      <path d="M3 12A9 3 0 0 0 21 12" />
+    </svg>
+  ),
+  Server: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+      <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+      <line x1="6" x2="6.01" y1="6" y2="6" />
+      <line x1="6" x2="6.01" y1="18" y2="18" />
+    </svg>
+  ),
+  MessageSquare: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+  Wallet: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+      <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+    </svg>
+  ),
+  Coins: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="6" />
+      <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
+      <path d="M7 6h1v4" />
+      <path d="m16.71 13.88.7.71-2.82 2.82" />
+    </svg>
+  ),
+  ArrowRightLeft: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m16 3 4 4-4 4" />
+      <path d="M20 7H4" />
+      <path d="m8 21-4-4 4-4" />
+      <path d="M4 17h16" />
+    </svg>
+  ),
+  Scan: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  Globe: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+      <path d="M2 12h20" />
+    </svg>
+  ),
+  CreditCard: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="14" x="2" y="5" rx="2" />
+      <line x1="2" x2="22" y1="10" y2="10" />
+    </svg>
+  ),
+  CheckCircle: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  ),
+  XCircle: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="m15 9-6 6" />
+      <path d="m9 9 6 6" />
+    </svg>
+  ),
+  AlertTriangle: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
+  ),
+  ChevronDown: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  ),
+  ChevronUp: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m18 15-6-6-6 6" />
+    </svg>
+  ),
+  ExternalLink: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    </svg>
+  ),
+  Clock: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  ),
+  RefreshCw: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M8 16H3v5" />
+    </svg>
+  ),
+  Sparkles: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+    </svg>
+  ),
+  LayoutGrid: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="7" height="7" x="3" y="3" rx="1" />
+      <rect width="7" height="7" x="14" y="3" rx="1" />
+      <rect width="7" height="7" x="14" y="14" rx="1" />
+      <rect width="7" height="7" x="3" y="14" rx="1" />
+    </svg>
+  ),
+  Lock: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  ),
+  Unlock: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+    </svg>
+  ),
+};
+
+// Skeleton Components
+function SkeletonCard() {
+  return (
+    <div className="glass-panel p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="skeleton w-10 h-10 rounded-xl" />
+        <div className="space-y-2 flex-1">
+          <div className="skeleton w-1/3 h-4 rounded" />
+          <div className="skeleton w-1/2 h-3 rounded" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="skeleton h-16 rounded-xl" />
+        <div className="skeleton h-16 rounded-xl" />
+      </div>
+      <div className="skeleton h-10 rounded-xl" />
+    </div>
+  );
+}
+
+function SkeletonMetric() {
+  return (
+    <div className="glass-panel p-4 space-y-2">
+      <div className="skeleton w-16 h-3 rounded" />
+      <div className="skeleton w-24 h-6 rounded" />
+    </div>
+  );
+}
+
+// Status Badge Component
+function StatusBadge({ status, type = 'default' }: { status: string; type?: 'default' | 'success' | 'warning' | 'error' | 'info' }) {
+  const variants = {
+    default: 'badge-slate',
+    success: 'badge-green',
+    warning: 'badge-amber',
+    error: 'badge-rose',
+    info: 'badge-blue',
+  };
+
+  const icons = {
+    default: null,
+    success: <Icons.CheckCircle className="w-3 h-3" />,
+    warning: <Icons.AlertTriangle className="w-3 h-3" />,
+    error: <Icons.XCircle className="w-3 h-3" />,
+    info: <Icons.Activity className="w-3 h-3" />,
+  };
+
+  return (
+    <span className={`badge ${variants[type]}`}>
+      {icons[type]}
+      {status}
+    </span>
+  );
+}
+
+// Section Header Component
+function SectionHeader({ 
+  icon: Icon, 
+  title, 
+  description, 
+  action,
+  variant = 'default'
+}: { 
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  variant?: 'default' | 'blue' | 'green' | 'amber' | 'rose' | 'violet';
+}) {
+  const iconVariants = {
+    default: 'icon-container',
+    blue: 'icon-container-blue',
+    green: 'icon-container-green',
+    amber: 'icon-container-amber',
+    rose: 'icon-container-rose',
+    violet: 'icon-container-violet',
+  };
+
+  return (
+    <div className="flex items-start justify-between gap-4 mb-5">
+      <div className="flex items-start gap-3">
+        <div className={iconVariants[variant]}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="section-title">{title}</h2>
+          {description && <p className="section-description mt-1">{description}</p>}
+        </div>
+      </div>
+      {action && <div className="flex-shrink-0">{action}</div>}
+    </div>
+  );
+}
+
+// Metric Card Component
+function MetricCard({ label, value, icon: Icon, loading = false }: { label: string; value: string; icon?: React.ComponentType<{ className?: string }>; loading?: boolean }) {
+  if (loading) return <SkeletonMetric />;
+
+  return (
+    <div className="glass-panel glass-elevated p-4 transition-all duration-200 hover:-translate-y-0.5">
+      <div className="flex items-center gap-2 mb-2">
+        {Icon && <Icon className="w-4 h-4 text-slate-500" />}
+        <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">{label}</p>
+      </div>
+      <p className="text-lg font-semibold text-slate-100">{value}</p>
+    </div>
+  );
+}
+
+// Empty State Component
+function EmptyState({ icon: Icon, title, description, action }: { icon: React.ComponentType<{ className?: string }>; title: string; description: string; action?: React.ReactNode }) {
+  return (
+    <div className="glass-panel border-dashed border-slate-700/50 p-10 text-center">
+      <div className="icon-container mx-auto mb-4">
+        <Icon className="w-6 h-6 text-slate-500" />
+      </div>
+      <h3 className="text-lg font-medium text-slate-300 mb-2">{title}</h3>
+      <p className="text-sm text-slate-500 mb-4 max-w-md mx-auto">{description}</p>
+      {action}
+    </div>
+  );
+}
+
+// Health Status Indicator
+function HealthIndicator({ label, status }: { label: string; status: 'online' | 'stale' | 'offline' | 'unknown' }) {
+  const variants = {
+    online: { dot: 'bg-emerald-500', bg: 'glass-green', text: 'text-emerald-400' },
+    stale: { dot: 'bg-amber-500', bg: 'glass-amber', text: 'text-amber-400' },
+    offline: { dot: 'bg-rose-500', bg: 'glass-rose', text: 'text-rose-400' },
+    unknown: { dot: 'bg-slate-500', bg: '', text: 'text-slate-500' },
+  };
+
+  const v = variants[status];
+
+  return (
+    <div className={`glass-panel ${v.bg} px-3 py-2 flex items-center gap-2`}>
+      <span className={`w-2 h-2 rounded-full ${v.dot} ${status === 'online' ? 'pulse-dot' : ''}`} />
+      <span className={`text-xs font-medium ${v.text}`}>{label}</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -109,6 +407,11 @@ export default function Home() {
   const [withdrawSignalHash, setWithdrawSignalHash] = useState<string | null>(null);
   const [withdrawNonce, setWithdrawNonce] = useState<string>(() => crypto.randomUUID());
   const [recoveryNonce, setRecoveryNonce] = useState<string>(() => crypto.randomUUID());
+  
+  // New state for collapsible proposals
+  const [expandedProposals, setExpandedProposals] = useState<Set<string>>(new Set());
+  const [loadingProposals, setLoadingProposals] = useState(true);
+  const [loadingVault, setLoadingVault] = useState(true);
 
   const xmtp = useCerberusXMTP();
   const x402 = useCerberusX402();
@@ -142,20 +445,27 @@ export default function Home() {
 
   const refreshProposals = useCallback(async () => {
     if (!address) return;
+    setLoadingProposals(true);
     const response = await fetch(`/api/proposals?wallet=${address}`);
     const payload = await response.json();
     if (response.ok) {
       setProposals(payload.proposals ?? []);
     }
+    setLoadingProposals(false);
   }, [address]);
 
   const refreshVaultStatus = useCallback(async () => {
-    if (!activeVault) return;
+    if (!activeVault) {
+      setLoadingVault(false);
+      return;
+    }
+    setLoadingVault(true);
     const response = await fetch(`/api/vault/${activeVault}/status`);
     const payload = await response.json();
     if (response.ok) {
       setVaultStatus(payload);
     }
+    setLoadingVault(false);
   }, [activeVault]);
 
   const refreshHealthStatus = useCallback(async () => {
@@ -197,6 +507,26 @@ export default function Home() {
     }, 0);
     return () => window.clearTimeout(timeout);
   }, [refreshHealthStatus]);
+
+  // Toggle proposal expansion
+  const toggleProposal = (id: string) => {
+    setExpandedProposals(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Helper to determine proposal status type
+  const getProposalStatusType = (status: string): 'default' | 'success' | 'warning' | 'error' | 'info' => {
+    const s = status.toLowerCase();
+    if (s.includes('executed') || s.includes('confirmed')) return 'success';
+    if (s.includes('approved')) return 'warning';
+    if (s.includes('rejected') || s.includes('failed')) return 'error';
+    if (s.includes('pending') || s.includes('scanning')) return 'info';
+    return 'default';
+  };
 
   const createVault = async () => {
     if (!recoveryAddress) {
@@ -478,143 +808,317 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_34%),linear-gradient(180deg,_#08111b_0%,_#0f172a_48%,_#111827_100%)] text-slate-100">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col gap-6 rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-sky-950/30 backdrop-blur">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-3xl space-y-3">
-              <p className="text-xs uppercase tracking-[0.4em] text-sky-300">Cerberus Governance Console</p>
-              <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Real Base market discovery with governed Base Sepolia execution.</h1>
-              <p className="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-                Cerberus scans real Base Mainnet liquidity for opportunities, then runs the approval, World ID, x402, and governed vault flow safely on Base Sepolia.
-              </p>
-            </div>
-            <div className="flex flex-col items-start gap-3 rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-              <ConnectButton />
-              <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
-                <span className="rounded-full border border-white/10 px-3 py-1">Opportunity chain: Base</span>
-                <span className="rounded-full border border-white/10 px-3 py-1">Exec chain: Base Sepolia</span>
-                <span className="rounded-full border border-white/10 px-3 py-1">x402 default: {defaultPaymentNetwork}</span>
-                <span className="rounded-full border border-white/10 px-3 py-1">World ID v4</span>
-                <span className="rounded-full border border-white/10 px-3 py-1">XMTP real agent path</span>
-                <span className="rounded-full border border-white/10 px-3 py-1">Worker: {healthStatus?.worker?.seen ? (healthStatus.worker.stale ? 'stale' : 'online') : 'missing'}</span>
+    <main className="min-h-screen pb-12">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden">
+        {/* Background gradients */}
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-950/30 via-slate-950/90 to-slate-950" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(14,165,233,0.12),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(139,92,246,0.06),transparent_40%)]" />
+        
+        <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="glass-panel glass-elevated glass-blue p-6 sm:p-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="max-w-2xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="icon-container-blue">
+                    <Icons.Shield className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-semibold uppercase tracking-widest text-sky-400">
+                    Cerberus Governance Console
+                  </span>
+                </div>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight">
+                  Real Base market discovery
+                  <span className="block text-sky-400">with governed execution</span>
+                </h1>
+                <p className="text-base text-slate-400 max-w-xl leading-relaxed">
+                  Cerberus scans real Base Mainnet liquidity for opportunities, then runs the approval, 
+                  World ID, x402, and governed vault flow safely on Base Sepolia.
+                </p>
+              </div>
+              
+              <div className="flex flex-col items-start gap-4">
+                <ConnectButton />
+                <div className="flex flex-wrap gap-2">
+                  <span className="badge badge-blue">
+                    <Icons.Globe className="w-3 h-3" />
+                    Base → Sepolia
+                  </span>
+                  <span className="badge badge-slate">
+                    <Icons.CreditCard className="w-3 h-3" />
+                    {defaultPaymentNetwork}
+                  </span>
+                  <span className="badge badge-slate">
+                    <Icons.Globe className="w-3 h-3" />
+                    World ID
+                  </span>
+                  <span className={`badge ${healthStatus?.worker?.seen && !healthStatus?.worker?.stale ? 'badge-green' : healthStatus?.worker?.stale ? 'badge-amber' : 'badge-rose'}`}>
+                    <Icons.Server className="w-3 h-3" />
+                    {healthStatus?.worker?.seen ? (healthStatus.worker.stale ? 'Worker Stale' : 'Worker Online') : 'Worker Offline'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {!isConnected ? (
-          <section className="rounded-[2rem] border border-white/10 bg-slate-950/40 p-8 text-center text-slate-300">
-            Connect a wallet to create a governed vault, link to the XMTP agent, and run the full World ID + x402 + on-chain authorization flow.
-          </section>
+          <EmptyState
+            icon={Icons.Wallet}
+            title="Connect Your Wallet"
+            description="Connect a wallet to create a governed vault, link to the XMTP agent, and run the full World ID + x402 + on-chain authorization flow."
+          />
         ) : (
-          <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <section className="space-y-6">
-              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
-                <h2 className="text-lg font-semibold text-white">System health</h2>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <Metric label="Redis" value={healthStatus?.redis?.ok ? 'Connected' : 'Unavailable'} />
-                  <Metric label="Worker" value={healthStatus?.worker?.seen ? (healthStatus.worker.stale ? 'Stale' : 'Healthy') : 'No heartbeat'} />
-                  <Metric label="XMTP env" value={healthStatus?.xmtp?.env ?? 'unknown'} />
+          <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+            {/* Left Sidebar */}
+            <section className="space-y-5">
+              {/* System Health */}
+              <div className="glass-panel glass-blue p-5">
+                <SectionHeader
+                  icon={Icons.Activity}
+                  title="System Health"
+                  description="Real-time infrastructure monitoring"
+                  variant="blue"
+                />
+                
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <HealthIndicator 
+                    label="Redis" 
+                    status={healthStatus?.redis?.ok ? 'online' : healthStatus?.redis ? 'offline' : 'unknown'} 
+                  />
+                  <HealthIndicator 
+                    label="Worker" 
+                    status={healthStatus?.worker?.seen ? (healthStatus.worker.stale ? 'stale' : 'online') : 'offline'} 
+                  />
+                  <HealthIndicator 
+                    label="XMTP" 
+                    status={healthStatus?.xmtp?.env ? 'online' : 'unknown'} 
+                  />
                 </div>
-                {healthStatus?.worker?.heartbeat ? (
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">
-                    <p>Worker inbox: {healthStatus.worker.heartbeat.inboxId}</p>
-                    <p className="mt-1 break-all">Worker wallet: {healthStatus.worker.heartbeat.walletAddress}</p>
-                    <p className="mt-1">Last heartbeat: {new Date(healthStatus.worker.heartbeat.timestamp).toLocaleString()}</p>
+
+                {healthStatus?.worker?.heartbeat && (
+                  <div className="glass-panel glass-elevated p-3 text-xs space-y-1.5">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Icons.MessageSquare className="w-3 h-3" />
+                      <span className="font-mono text-slate-400 truncate">{healthStatus.worker.heartbeat.inboxId}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Icons.Clock className="w-3 h-3" />
+                      <span>Last heartbeat: {new Date(healthStatus.worker.heartbeat.timestamp).toLocaleString()}</span>
+                    </div>
                   </div>
-                ) : null}
-                {healthStatus?.error ? <p className="mt-3 text-sm text-rose-300">{healthStatus.error}</p> : null}
+                )}
+
+                {healthStatus?.error && (
+                  <div className="mt-3 flex items-center gap-2 text-sm text-rose-400">
+                    <Icons.AlertTriangle className="w-4 h-4" />
+                    {healthStatus.error}
+                  </div>
+                )}
               </div>
 
-              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
-                <h2 className="text-lg font-semibold text-white">Vault setup</h2>
-                <p className="mt-1 text-sm text-slate-400">Deploy one governed vault per owner. All outflows require Cerberus authorization.</p>
-                <div className="mt-4 space-y-3">
+              {/* Vault Setup */}
+              <div className="glass-panel p-5">
+                <SectionHeader
+                  icon={Icons.Lock}
+                  title="Vault Setup"
+                  description="Deploy one governed vault per owner. All outflows require Cerberus authorization."
+                  variant="default"
+                />
+                
+                <div className="space-y-3">
                   <input
                     value={recoveryAddress}
-                    onChange={(event) => setRecoveryAddress(event.target.value)}
-                    placeholder="Recovery address"
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm outline-none ring-0 placeholder:text-slate-500"
+                    onChange={(e) => setRecoveryAddress(e.target.value)}
+                    placeholder="Recovery address (0x...)"
+                    className="glass-input"
                   />
-                  <button onClick={createVault} className="w-full rounded-2xl bg-amber-400 px-4 py-3 font-semibold text-slate-950 hover:bg-amber-300">
-                    {activeVault ? 'Vault deployed' : 'Create governed vault'}
+                  
+                  <button 
+                    onClick={createVault} 
+                    disabled={!!activeVault}
+                    className={`glass-button w-full ${activeVault ? 'glass-button-success' : 'glass-button-primary'}`}
+                  >
+                    {activeVault ? (
+                      <>
+                        <Icons.CheckCircle className="w-4 h-4" />
+                        Vault Deployed
+                      </>
+                    ) : (
+                      <>
+                        <Icons.Shield className="w-4 h-4" />
+                        Create Governed Vault
+                      </>
+                    )}
                   </button>
-                  {activeVault ? (
-                    <button onClick={bootstrapVault} className="w-full rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white hover:bg-white/5">
-                      Bootstrap allowlists and approvals
+                  
+                  {activeVault && (
+                    <button 
+                      onClick={bootstrapVault} 
+                      className="glass-button w-full"
+                    >
+                      <Icons.Sparkles className="w-4 h-4" />
+                      Bootstrap Allowlists
                     </button>
-                  ) : null}
-                  {bootstrapStatus ? <p className="text-xs text-sky-300">{bootstrapStatus}</p> : null}
+                  )}
+                  
+                  {bootstrapStatus && (
+                    <div className="flex items-center gap-2 text-sm text-sky-400 p-2 rounded-lg bg-sky-950/30 border border-sky-500/20">
+                      <Icons.Activity className="w-4 h-4" />
+                      {bootstrapStatus}
+                    </div>
+                  )}
                 </div>
-                <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">
-                  <p className="font-medium text-white">Vault</p>
-                  <p className="mt-1 break-all">{activeVault ?? 'Not deployed yet'}</p>
+
+                <div className="mt-4 glass-panel glass-elevated p-3">
+                  <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                    <Icons.Shield className="w-3 h-3" />
+                    Vault Address
+                  </div>
+                  <p className="font-mono text-sm text-slate-300 break-all">
+                    {activeVault || 'Not deployed yet'}
+                  </p>
                 </div>
               </div>
 
-              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
-                <h2 className="text-lg font-semibold text-white">Funding and status</h2>
-                <div className="mt-4 space-y-3 text-sm text-slate-300">
-                  <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">ETH</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{vaultStatus?.balances.eth ?? '0.0'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">USDC</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{vaultStatus?.balances.usdc ?? '0.0'}</p>
-                    </div>
-                  </div>
+              {/* Funding & Status */}
+              <div className="glass-panel p-5">
+                <SectionHeader
+                  icon={Icons.Coins}
+                  title="Treasury"
+                  description="Vault balances and funding"
+                  variant="default"
+                />
+                
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <MetricCard 
+                    label="ETH Balance" 
+                    value={vaultStatus?.balances.eth ?? '0.0'} 
+                    loading={loadingVault}
+                  />
+                  <MetricCard 
+                    label="USDC Balance" 
+                    value={vaultStatus?.balances.usdc ?? '0.0'} 
+                    loading={loadingVault}
+                  />
+                </div>
+
+                <div className="space-y-3">
                   <input
                     value={depositAmount}
-                    onChange={(event) => setDepositAmount(event.target.value)}
-                    placeholder="Deposit ETH"
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm outline-none placeholder:text-slate-500"
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    placeholder="Amount in ETH"
+                    className="glass-input"
                   />
-                  <button onClick={fundVault} disabled={!activeVault} className="w-full rounded-2xl border border-white/15 px-4 py-3 font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">
-                    Fund vault with ETH
+                  <button 
+                    onClick={fundVault} 
+                    disabled={!activeVault}
+                    className="glass-button w-full glass-button-primary"
+                  >
+                    <Icons.Wallet className="w-4 h-4" />
+                    Fund Vault
                   </button>
-                  <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-400">
-                    <p>Owner: {vaultStatus?.owner ?? '—'}</p>
-                    <p className="mt-1">Recovery: {vaultStatus?.recoveryAddress ?? '—'}</p>
-                    <p className="mt-1">Paused: {vaultStatus?.paused ? 'yes' : 'no'}</p>
+                </div>
+
+                <div className="mt-4 glass-panel glass-elevated p-3 space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Owner</span>
+                    <span className="font-mono text-slate-400 truncate max-w-[200px]">
+                      {vaultStatus?.owner ?? '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Recovery</span>
+                    <span className="font-mono text-slate-400 truncate max-w-[200px]">
+                      {vaultStatus?.recoveryAddress ?? '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Status</span>
+                    <span className={`badge ${vaultStatus?.paused ? 'badge-rose' : 'badge-green'}`}>
+                      {vaultStatus?.paused ? 'Paused' : 'Active'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
-                <h2 className="text-lg font-semibold text-white">XMTP control plane</h2>
-                <p className="mt-1 text-sm text-slate-400">The web client talks to the persistent agent inbox, while the worker streams approvals and proposal state.</p>
-                <button onClick={connectXmtp} className="mt-4 w-full rounded-2xl bg-sky-500 px-4 py-3 font-semibold text-white hover:bg-sky-400">
-                  {xmtp.client ? 'XMTP connected' : 'Connect XMTP inbox'}
+              {/* XMTP Control */}
+              <div className="glass-panel glass-violet p-5">
+                <SectionHeader
+                  icon={Icons.MessageSquare}
+                  title="XMTP Control"
+                  description="Connect to the persistent agent inbox"
+                  variant="violet"
+                />
+                
+                <button 
+                  onClick={connectXmtp} 
+                  className={`glass-button w-full ${xmtp.client ? 'glass-button-success' : 'glass-button-primary'}`}
+                >
+                  {xmtp.client ? (
+                    <>
+                      <Icons.CheckCircle className="w-4 h-4" />
+                      XMTP Connected
+                    </>
+                  ) : (
+                    <>
+                      <Icons.MessageSquare className="w-4 h-4" />
+                      Connect XMTP
+                    </>
+                  )}
                 </button>
-                {xmtp.error ? <p className="mt-2 text-xs text-rose-300">{xmtp.error}</p> : null}
-                <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">
-                  <p>Agent address: {xmtp.agentAddress}</p>
-                  <p className="mt-1">Agent reachable: {xmtp.agentReachable === null ? 'unknown' : xmtp.agentReachable ? 'yes' : 'no'}</p>
-                  <p className="mt-1">Agent inbox: {xmtp.agentInboxId ?? 'unknown'}</p>
-                  <p className="mt-1">Messages synced: {xmtp.messages.length}</p>
+
+                {xmtp.error && (
+                  <div className="mt-3 flex items-center gap-2 text-sm text-rose-400">
+                    <Icons.AlertTriangle className="w-4 h-4" />
+                    {xmtp.error}
+                  </div>
+                )}
+
+                <div className="mt-4 glass-panel glass-elevated p-3 space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Agent</span>
+                    <span className="font-mono text-slate-400 truncate max-w-[180px]">{xmtp.agentAddress}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Reachable</span>
+                    <span className={`${xmtp.agentReachable ? 'text-emerald-400' : xmtp.agentReachable === null ? 'text-slate-500' : 'text-rose-400'}`}>
+                      {xmtp.agentReachable === null ? 'Unknown' : xmtp.agentReachable ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Messages</span>
+                    <span className="badge badge-blue">{xmtp.messages.length}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
-                <h2 className="text-lg font-semibold text-white">Manual withdrawal</h2>
-                <p className="mt-1 text-sm text-slate-400">Withdrawals stay governed: fresh World ID plus owner and Cerberus signatures.</p>
-                <div className="mt-4 space-y-3">
+              {/* Manual Withdrawal */}
+              <div className="glass-panel glass-amber p-5">
+                <SectionHeader
+                  icon={Icons.Unlock}
+                  title="Manual Withdrawal"
+                  description="Withdrawals require World ID + dual signatures"
+                  variant="amber"
+                />
+                
+                <div className="space-y-3">
                   <input
                     value={withdrawRecipient}
-                    onChange={(event) => setWithdrawRecipient(event.target.value)}
-                    placeholder="Recipient (defaults to connected wallet)"
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm outline-none placeholder:text-slate-500"
+                    onChange={(e) => setWithdrawRecipient(e.target.value)}
+                    placeholder="Recipient (defaults to owner)"
+                    className="glass-input"
                   />
                   <input
                     value={withdrawAmount}
-                    onChange={(event) => setWithdrawAmount(event.target.value)}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
                     placeholder="Amount in ETH"
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm outline-none placeholder:text-slate-500"
+                    className="glass-input"
                   />
-                  {address && activeVault ? (
+                  {address && activeVault && (
                     <WorldIdActionButton
                       actionType="withdraw"
                       wallet={address}
@@ -622,18 +1126,29 @@ export default function Home() {
                       nonce={withdrawNonce}
                       onVerified={({ signalHash }) => setWithdrawSignalHash(signalHash)}
                     />
-                  ) : null}
-                  <button onClick={withdrawFromVault} disabled={!activeVault || !withdrawSignalHash} className="w-full rounded-2xl border border-white/15 px-4 py-3 font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">
-                    Execute governed withdrawal
+                  )}
+                  <button 
+                    onClick={withdrawFromVault} 
+                    disabled={!activeVault || !withdrawSignalHash}
+                    className="glass-button w-full glass-button-warning"
+                  >
+                    <Icons.Unlock className="w-4 h-4" />
+                    Execute Withdrawal
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
-                <h2 className="text-lg font-semibold text-white">Recovery path</h2>
-                <p className="mt-1 text-sm text-slate-400">Recovery is constrained to the pre-registered address and still requires Cerberus authorization.</p>
+              {/* Recovery Path */}
+              <div className="glass-panel glass-rose p-5">
+                <SectionHeader
+                  icon={Icons.Shield}
+                  title="Recovery Path"
+                  description="Recovery requires pre-registered address + authorization"
+                  variant="rose"
+                />
+                
                 {address && activeVault && recoveryAddress ? (
-                  <div className="mt-4 space-y-3">
+                  <div className="space-y-3">
                     <WorldIdActionButton
                       actionType="recover"
                       wallet={address}
@@ -642,118 +1157,332 @@ export default function Home() {
                       recoveryAddress={recoveryAddress}
                       onVerified={({ signalHash }) => setRecoverySignalHash(signalHash)}
                     />
-                    <button onClick={requestRecovery} disabled={!recoverySignalHash} className="w-full rounded-2xl border border-white/15 px-4 py-3 font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">
-                      Request recovery timelock
+                    <button 
+                      onClick={requestRecovery} 
+                      disabled={!recoverySignalHash}
+                      className="glass-button w-full glass-button-warning"
+                    >
+                      <Icons.Shield className="w-4 h-4" />
+                      Request Recovery
                     </button>
                   </div>
                 ) : (
-                  <p className="mt-3 text-sm text-slate-500">Set a recovery address first.</p>
+                  <div className="flex items-center gap-3 text-sm text-slate-500 p-3 rounded-xl bg-slate-950/50 border border-slate-800">
+                    <Icons.AlertTriangle className="w-4 h-4 text-amber-500" />
+                    Set a recovery address first
+                  </div>
                 )}
               </div>
             </section>
 
-            <section className="space-y-6">
-              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-white">Agent proposals</h2>
-                    <p className="mt-1 text-sm text-slate-400">Queue a worker job, fetch a live Base Mainnet quote, push the proposal over XMTP, then complete the World ID and x402 gates before testnet execution.</p>
+            {/* Main Content */}
+            <section className="space-y-5">
+              {/* Agent Proposals Header */}
+              <div className="glass-panel p-5">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="icon-container-blue">
+                      <Icons.Scan className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="section-title">Agent Proposals</h2>
+                      <p className="section-description">
+                        Live Base Mainnet opportunities queued for execution
+                      </p>
+                    </div>
                   </div>
-                  <button onClick={triggerScan} disabled={!activeVault} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
-                    Run AgentKit scan
+                  <button 
+                    onClick={triggerScan} 
+                    disabled={!activeVault}
+                    className="glass-button glass-button-primary whitespace-nowrap"
+                  >
+                    <Icons.Scan className="w-4 h-4" />
+                    Run AgentKit Scan
                   </button>
                 </div>
-                {scanStatus ? <p className="mt-3 text-sm text-sky-300">{scanStatus}</p> : null}
+
+                {scanStatus && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-sky-400 p-3 rounded-xl bg-sky-950/30 border border-sky-500/20">
+                    <Icons.Activity className="w-4 h-4 animate-pulse" />
+                    {scanStatus}
+                  </div>
+                )}
               </div>
 
+              {/* Proposals List */}
               <div className="space-y-4">
-                {proposals.length === 0 ? (
-                  <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-slate-950/40 p-10 text-center text-slate-400">
-                    No proposals staged yet. Deploy a vault, bootstrap it, connect XMTP, and run the AgentKit scan.
-                  </div>
+                {loadingProposals ? (
+                  <>
+                    <SkeletonCard />
+                    <SkeletonCard />
+                  </>
+                ) : proposals.length === 0 ? (
+                  <EmptyState
+                    icon={Icons.LayoutGrid}
+                    title="No Proposals Yet"
+                    description="Deploy a vault, bootstrap it, connect XMTP, and run the AgentKit scan to discover opportunities."
+                  />
                 ) : (
                   proposals.map((proposal) => {
                     const nonce = actionNonce[proposal.proposal.proposalId] ?? crypto.randomUUID();
+                    const isExpanded = expandedProposals.has(proposal.proposal.proposalId);
+                    const statusType = getProposalStatusType(proposal.status);
+
                     return (
-                      <article key={proposal.proposal.proposalId} className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="space-y-3">
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                              <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-sky-200">{proposal.status}</span>
-                              <span className="rounded-full border border-white/10 px-3 py-1">Risk {proposal.proposal.risk.score}</span>
-                              <span className="rounded-full border border-white/10 px-3 py-1">Confidence {(proposal.proposal.risk.confidence * 100).toFixed(0)}%</span>
-                              <span className="rounded-full border border-white/10 px-3 py-1">Payment {proposal.proposal.paymentRequirement.paymentNetwork}</span>
-                              <span className="rounded-full border border-white/10 px-3 py-1">Quote {proposal.proposal.opportunity.source}</span>
+                      <div 
+                        key={proposal.proposal.proposalId}
+                        className={`glass-panel transition-all duration-300 ${
+                          statusType === 'success' ? 'glass-green' : 
+                          statusType === 'error' ? 'glass-rose' :
+                          statusType === 'warning' ? 'glass-amber' : 'glass-blue'
+                        }`}
+                      >
+                        {/* Collapsed Header */}
+                        <div 
+                          className="p-5 cursor-pointer"
+                          onClick={() => toggleProposal(proposal.proposal.proposalId)}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 flex-1">
+                              <StatusBadge 
+                                status={proposal.status} 
+                                type={statusType}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-slate-100 truncate">
+                                  Proposal {proposal.proposal.proposalId.slice(0, 8)}...
+                                </h3>
+                                <p className="text-xs text-slate-500 truncate">
+                                  {proposal.proposal.risk.analysisSummary}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <h3 className="text-xl font-semibold text-white">Proposal {proposal.proposal.proposalId}</h3>
-                              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-300">{proposal.proposal.risk.analysisSummary}</p>
-                            </div>
-                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                              <Metric label="Proposal hash" value={`${proposal.proposalHash.slice(0, 10)}...${proposal.proposalHash.slice(-8)}`} />
-                              <Metric label="Base quote in" value={`${(Number(proposal.proposal.opportunity.amountIn) / 1_000_000).toFixed(2)} USDC`} />
-                              <Metric label="Quoted out" value={`${formatEther(BigInt(proposal.proposal.opportunity.quotedAmountOut))} WETH`} />
-                              <Metric label="Min receive" value={`${formatEther(BigInt(proposal.proposal.opportunity.minAmountOut))} ETH/WETH`} />
-                              <Metric label="Fee tier" value={`${proposal.proposal.opportunity.feeTier / 10_000}%`} />
-                              <Metric label="Expires" value={new Date(proposal.proposal.timing.expiresAt).toLocaleTimeString()} />
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">
-                              <p>Opportunity chain: {proposal.proposal.metadata.opportunityChain}</p>
-                              <p className="mt-1">Execution chain: {proposal.proposal.metadata.executionChain}</p>
-                              <p className="mt-1">Quote source: {proposal.proposal.metadata.quoteSource}</p>
-                              <p className="mt-1 break-all">Quote hash: {proposal.proposal.opportunity.quoteHash}</p>
+                            
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-lg font-semibold text-slate-100">
+                                  {(Number(proposal.proposal.opportunity.amountIn) / 1_000_000).toFixed(2)}
+                                </span>
+                                <span className="text-xs text-slate-500">USDC</span>
+                              </div>
+                              <Icons.ArrowRightLeft className="w-4 h-4 text-slate-600" />
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-lg font-semibold text-slate-100">
+                                  {formatEther(BigInt(proposal.proposal.opportunity.quotedAmountOut)).slice(0, 6)}
+                                </span>
+                                <span className="text-xs text-slate-500">WETH</span>
+                              </div>
+                              <button className="p-1 rounded-lg hover:bg-white/5 transition-colors">
+                                {isExpanded ? (
+                                  <Icons.ChevronUp className="w-5 h-5 text-slate-400" />
+                                ) : (
+                                  <Icons.ChevronDown className="w-5 h-5 text-slate-400" />
+                                )}
+                              </button>
                             </div>
                           </div>
-                          <div className="w-full max-w-md space-y-3 rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-4">
-                            <div className="flex flex-wrap gap-2">
-                              <button onClick={() => approveProposal(proposal)} disabled={!xmtp.client} className="rounded-full bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-40">Approve via XMTP</button>
-                              <button onClick={() => rejectProposal(proposal)} disabled={!xmtp.client} className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">Reject</button>
-                            </div>
-                            {address && activeVault ? (
-                              <WorldIdActionButton
-                                actionType="execute"
-                                wallet={address}
-                                vault={activeVault}
-                                nonce={nonce}
-                                proposalHash={proposal.proposalHash}
-                                onVerified={({ signalHash }) => {
-                                  setVerificationSignals((current) => ({ ...current, [proposal.proposal.proposalId]: signalHash }));
-                                  setActionNonce((current) => ({ ...current, [proposal.proposal.proposalId]: nonce }));
-                                }}
-                              />
-                            ) : null}
-                            <button onClick={() => settlePayment(proposal)} disabled={!x402.isReady} className="w-full rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">Pay x402 authorization fee</button>
-                            <button onClick={() => executeProposal(proposal)} disabled={!verificationSignals[proposal.proposal.proposalId]} className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40">Execute on-chain through vault</button>
-                            {proposal.executionTxHash ? <p className="text-xs text-emerald-300">Executed: {proposal.executionTxHash}</p> : null}
+
+                          {/* Quick Stats Row */}
+                          <div className="flex items-center gap-4 mt-3 text-xs">
+                            <span className="flex items-center gap-1 text-slate-500">
+                              Risk: <span className="text-slate-300 font-medium">{proposal.proposal.risk.score}/10</span>
+                            </span>
+                            <span className="flex items-center gap-1 text-slate-500">
+                              Confidence: <span className="text-slate-300 font-medium">{(proposal.proposal.risk.confidence * 100).toFixed(0)}%</span>
+                            </span>
+                            <span className="badge badge-slate">
+                              {proposal.proposal.paymentRequirement.paymentNetwork}
+                            </span>
                           </div>
                         </div>
-                      </article>
+
+                        {/* Expanded Content */}
+                        {isExpanded && (
+                          <div className="border-t border-slate-800/50 p-5 fade-in">
+                            <div className="grid lg:grid-cols-2 gap-5">
+                              {/* Left: Details */}
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-sm text-slate-300 mb-3 leading-relaxed">
+                                    {proposal.proposal.risk.analysisSummary}
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <MetricCard 
+                                    label="Input" 
+                                    value={`${(Number(proposal.proposal.opportunity.amountIn) / 1_000_000).toFixed(2)} USDC`}
+                                  />
+                                  <MetricCard 
+                                    label="Expected Output" 
+                                    value={`${formatEther(BigInt(proposal.proposal.opportunity.quotedAmountOut))} WETH`}
+                                  />
+                                  <MetricCard 
+                                    label="Minimum" 
+                                    value={`${formatEther(BigInt(proposal.proposal.opportunity.minAmountOut))} ETH`}
+                                  />
+                                  <MetricCard 
+                                    label="Fee Tier" 
+                                    value={`${proposal.proposal.opportunity.feeTier / 10_000}%`}
+                                  />
+                                </div>
+
+                                <div className="glass-panel glass-elevated p-3 text-xs space-y-1.5">
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">Expires</span>
+                                    <span className="text-slate-300">{new Date(proposal.proposal.timing.expiresAt).toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">Opportunity Chain</span>
+                                    <span className="text-slate-300">{proposal.proposal.metadata.opportunityChain}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">Execution Chain</span>
+                                    <span className="text-slate-300">{proposal.proposal.metadata.executionChain}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-500">Quote Source</span>
+                                    <span className="text-slate-300">{proposal.proposal.metadata.quoteSource}</span>
+                                  </div>
+                                  <div className="pt-1.5 border-t border-slate-800">
+                                    <span className="text-slate-500 block mb-1">Quote Hash</span>
+                                    <span className="font-mono text-slate-400 break-all">{proposal.proposal.opportunity.quoteHash}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Right: Actions */}
+                              <div className="space-y-3">
+                                <div className="glass-panel glass-elevated p-4 space-y-3">
+                                  <h4 className="text-sm font-medium text-slate-300 mb-3">Execution Flow</h4>
+                                  
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button 
+                                      onClick={() => approveProposal(proposal)} 
+                                      disabled={!xmtp.client}
+                                      className="glass-button glass-button-primary"
+                                    >
+                                      <Icons.MessageSquare className="w-4 h-4" />
+                                      Approve XMTP
+                                    </button>
+                                    <button 
+                                      onClick={() => rejectProposal(proposal)} 
+                                      disabled={!xmtp.client}
+                                      className="glass-button"
+                                    >
+                                      <Icons.XCircle className="w-4 h-4" />
+                                      Reject
+                                    </button>
+                                  </div>
+
+                                  {address && activeVault && (
+                                    <WorldIdActionButton
+                                      actionType="execute"
+                                      wallet={address}
+                                      vault={activeVault}
+                                      nonce={nonce}
+                                      proposalHash={proposal.proposalHash}
+                                      onVerified={({ signalHash }) => {
+                                        setVerificationSignals((current) => ({ ...current, [proposal.proposal.proposalId]: signalHash }));
+                                        setActionNonce((current) => ({ ...current, [proposal.proposal.proposalId]: nonce }));
+                                      }}
+                                    />
+                                  )}
+
+                                  <button 
+                                    onClick={() => settlePayment(proposal)} 
+                                    disabled={!x402.isReady}
+                                    className="glass-button w-full"
+                                  >
+                                    <Icons.CreditCard className="w-4 h-4" />
+                                    Pay x402 Fee
+                                  </button>
+
+                                  <button 
+                                    onClick={() => executeProposal(proposal)} 
+                                    disabled={!verificationSignals[proposal.proposal.proposalId]}
+                                    className="glass-button w-full glass-button-success"
+                                  >
+                                    <Icons.CheckCircle className="w-4 h-4" />
+                                    Execute On-Chain
+                                  </button>
+                                </div>
+
+                                {proposal.executionTxHash && (
+                                  <div className="glass-panel glass-green p-3 flex items-center gap-2 text-sm">
+                                    <Icons.CheckCircle className="w-4 h-4 text-emerald-400" />
+                                    <span className="text-emerald-400">Executed:</span>
+                                    <span className="font-mono text-slate-400 truncate flex-1">{proposal.executionTxHash}</span>
+                                    <a 
+                                      href={`https://sepolia.basescan.org/tx/${proposal.executionTxHash}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                                    >
+                                      <Icons.ExternalLink className="w-4 h-4 text-slate-400" />
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     );
                   })
                 )}
               </div>
 
-              <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/55 p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-white">XMTP transcript</h2>
-                    <p className="mt-1 text-sm text-slate-400">Live transport between the browser owner inbox and the persistent Cerberus agent inbox.</p>
-                  </div>
-                  <button onClick={xmtp.refreshMessages} className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/5">Refresh</button>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {xmtp.messages.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-slate-500">
-                      No XMTP messages yet.
+              {/* XMTP Transcript */}
+              <div className="glass-panel glass-violet p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="icon-container-violet">
+                      <Icons.MessageSquare className="w-5 h-5" />
                     </div>
+                    <div>
+                      <h2 className="section-title">XMTP Transcript</h2>
+                      <p className="section-description">Live transport between owner and agent</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={xmtp.refreshMessages}
+                    className="glass-button"
+                  >
+                    <Icons.RefreshCw className="w-4 h-4" />
+                    Refresh
+                  </button>
+                </div>
+
+                <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2">
+                  {xmtp.messages.length === 0 ? (
+                    <EmptyState
+                      icon={Icons.MessageSquare}
+                      title="No Messages"
+                      description="XMTP messages will appear here once the agent connects."
+                    />
                   ) : (
                     xmtp.messages.map((message) => (
-                      <div key={message.id} className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm text-slate-200">
-                        <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
-                          <span>{message.senderInboxId}</span>
-                          <span>{new Date(message.sentAt).toLocaleString()}</span>
+                      <div 
+                        key={message.id} 
+                        className="glass-panel glass-elevated p-4"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500/20 to-violet-500/20 border border-slate-700/50 flex items-center justify-center text-xs font-medium text-slate-400">
+                              {message.senderInboxId.slice(0, 2).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-mono text-slate-500">
+                              {message.senderInboxId.slice(0, 12)}...
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-600">
+                            {new Date(message.sentAt).toLocaleString()}
+                          </span>
                         </div>
-                        <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs text-slate-200">{message.content}</pre>
+                        <pre className="text-xs text-slate-300 whitespace-pre-wrap break-words font-mono bg-slate-950/50 rounded-lg p-3 border border-slate-800/50">
+                          {message.content}
+                        </pre>
                       </div>
                     ))
                   )}
@@ -764,14 +1493,5 @@ export default function Home() {
         )}
       </div>
     </main>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-white">{value}</p>
-    </div>
   );
 }
