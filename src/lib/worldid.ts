@@ -1,7 +1,7 @@
 import type { IDKitResult } from "@worldcoin/idkit";
+import { hashSignal as hashWorldSignal } from "@worldcoin/idkit-core";
 import { signRequest } from "@worldcoin/idkit/signing";
 import { serverEnv } from "@/lib/server-env";
-import { hashSignal } from "@/lib/protocol/hash";
 import { TTL_MS } from "@/lib/protocol/constants";
 
 export type WorldActionType = "execute" | "withdraw" | "recover";
@@ -9,11 +9,11 @@ export type WorldActionType = "execute" | "withdraw" | "recover";
 export function toWorldAction(actionType: WorldActionType) {
   switch (actionType) {
     case "execute":
-      return "cerberus_vault_execute";
+      return "cerberus-vault-execute";
     case "withdraw":
-      return "cerberus_vault_withdraw";
+      return "cerberus-vault-withdraw";
     case "recover":
-      return "cerberus_vault_recover";
+      return "cerberus-vault-recover";
   }
 }
 
@@ -35,7 +35,7 @@ export function createWorldSignal(input: {
 
   return {
     signal,
-    signalHash: hashSignal([signal]),
+    signalHash: hashWorldSignal(signal),
   };
 }
 
