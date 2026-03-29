@@ -9,6 +9,7 @@ import { executionAuthorizationSchema } from "@/lib/protocol/schemas";
 import { getCerberusAccount } from "@/lib/server/wallet";
 import { getPaymentIntentByProposal, getProposalRecord, reserveNonce, updateProposalRecord } from "@/lib/server/workflow";
 import { TTL_MS } from "@/lib/protocol/constants";
+import { durationMsToSeconds, nowUnixSeconds } from "@/lib/time";
 
 const bodySchema = z.object({
   wallet: z.string(),
@@ -64,6 +65,7 @@ export async function POST(request: Request, context: { params: Promise<{ propos
       action: "execute",
     });
 
+    const validAfter = nowUnixSeconds();
     const auth = executionAuthorizationSchema.parse({
       vault: proposalRecord.vault,
       proposalId,
@@ -75,8 +77,8 @@ export async function POST(request: Request, context: { params: Promise<{ propos
       minAmountOut: proposalRecord.proposal.action.minAmountOut,
       callDataHash: keccak256(proposalRecord.proposal.action.encodedCall as `0x${string}`),
       nonce: body.nonce,
-      validAfter: Date.now(),
-      validUntil: Date.now() + TTL_MS.authSession,
+      validAfter,
+      validUntil: validAfter + durationMsToSeconds(TTL_MS.authSession),
       policyHash,
     });
 

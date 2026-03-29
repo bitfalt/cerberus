@@ -8,6 +8,7 @@ import { recoveryAuthorizationSchema } from '@/lib/protocol/schemas';
 import { TTL_MS } from '@/lib/protocol/constants';
 import { getCerberusAccount } from '@/lib/server/wallet';
 import { reserveNonce } from '@/lib/server/workflow';
+import { durationMsToSeconds, nowUnixSeconds } from '@/lib/time';
 
 const bodySchema = z.object({
   wallet: z.string(),
@@ -41,12 +42,13 @@ export async function POST(request: Request, context: { params: Promise<{ vault:
       action: 'recover',
     });
 
+    const validAfter = nowUnixSeconds();
     const auth = recoveryAuthorizationSchema.parse({
       vault: vault.toLowerCase(),
       recoveryAddress: body.recoveryAddress.toLowerCase(),
       nonce: body.nonce,
-      validAfter: Date.now(),
-      validUntil: Date.now() + TTL_MS.authSession,
+      validAfter,
+      validUntil: validAfter + durationMsToSeconds(TTL_MS.authSession),
       policyHash,
     });
 

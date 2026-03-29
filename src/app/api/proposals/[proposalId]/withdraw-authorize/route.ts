@@ -8,6 +8,7 @@ import { withdrawalAuthorizationSchema } from '@/lib/protocol/schemas';
 import { TTL_MS } from '@/lib/protocol/constants';
 import { getCerberusAccount } from '@/lib/server/wallet';
 import { reserveNonce } from '@/lib/server/workflow';
+import { durationMsToSeconds, nowUnixSeconds } from '@/lib/time';
 
 const bodySchema = z.object({
   wallet: z.string(),
@@ -43,14 +44,15 @@ export async function POST(request: Request) {
       action: 'withdraw',
     });
 
+    const validAfter = nowUnixSeconds();
     const auth = withdrawalAuthorizationSchema.parse({
       vault: body.vault.toLowerCase(),
       token: body.token.toLowerCase(),
       to: body.to.toLowerCase(),
       amount: body.amount,
       nonce: body.nonce,
-      validAfter: Date.now(),
-      validUntil: Date.now() + TTL_MS.authSession,
+      validAfter,
+      validUntil: validAfter + durationMsToSeconds(TTL_MS.authSession),
       policyHash,
     });
 
