@@ -1444,17 +1444,17 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* Expanded Content */}
-                        {isExpanded && (
-                          <div className="border-t border-slate-800/50 p-5 fade-in">
-                            <div className="grid lg:grid-cols-2 gap-5">
-                              {/* Left: Details */}
-                              <div className="space-y-4">
-                                <div>
-                                  <p className="text-sm text-slate-300 mb-3 leading-relaxed">
-                                    {proposal.proposal.risk.analysisSummary}
-                                  </p>
-                                </div>
+                          {/* Expanded Content */}
+                          {isExpanded && (
+                            <div className="border-t border-slate-800/50 p-5 fade-in overflow-x-hidden">
+                              <div className="grid lg:grid-cols-2 gap-5 max-w-full">
+                                {/* Left: Details */}
+                                <div className="space-y-4 min-w-0 overflow-hidden">
+                                  <div>
+                                    <p className="text-sm text-slate-300 mb-3 leading-relaxed line-clamp-4">
+                                      {proposal.proposal.risk.analysisSummary}
+                                    </p>
+                                  </div>
 
                                 <div className="card-grid-2 gap-2">
                                   <MetricCard 
@@ -1500,8 +1500,8 @@ export default function Home() {
                               </div>
 
                               {/* Right: Actions */}
-                              <div className="space-y-3">
-                                <div className="glass-panel glass-elevated p-4 space-y-3">
+                              <div className="space-y-3 min-w-0">
+                                <div className="glass-panel glass-elevated p-4 space-y-3 max-w-full">
                                   <h4 className="text-sm font-medium text-slate-300 mb-3">Execution Flow</h4>
                                   
                                   <div className="card-grid-2 gap-2">
