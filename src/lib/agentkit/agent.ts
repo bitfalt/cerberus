@@ -1,8 +1,5 @@
-import { AgentKit, CdpEvmWalletProvider, walletActionProvider } from "@coinbase/agentkit";
-import { getLangChainTools } from "@coinbase/agentkit-langchain";
 import { HumanMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { DEMO_LIMITS } from "@/lib/protocol/constants";
 import { getWorkerEnv, hasAgentWorkerEnv } from "@/lib/server-env";
 import type { BaseMainnetQuote } from "@/lib/quotes/base-mainnet-uniswap";
@@ -14,50 +11,25 @@ type ProposalAnalysis = {
   sourceRefs: string[];
 };
 
-let cachedAgent:
-  | {
-      agent: ReturnType<typeof createReactAgent>;
-      walletAddress: string;
-    }
-  | null = null;
+let cachedModel: ChatOpenAI | null = null;
 
-async function initializeAgent() {
-  if (cachedAgent) {
-    return cachedAgent;
+function getAnalysisModel() {
+  if (cachedModel) {
+    return cachedModel;
   }
 
   if (!hasAgentWorkerEnv) {
-    throw new Error("Agent worker environment is incomplete. Set OpenAI, CDP, and XMTP worker credentials.");
+    throw new Error("Worker environment is incomplete. Set OpenAI, XMTP, Redis, and RPC credentials.");
   }
 
   const workerEnv = getWorkerEnv();
-  const walletProvider = await CdpEvmWalletProvider.configureWithWallet({
-    apiKeyId: workerEnv.CDP_API_KEY_ID,
-    apiKeySecret: workerEnv.CDP_API_KEY_SECRET,
-    networkId: workerEnv.NETWORK_ID,
-  });
-
-  const walletAddress = await walletProvider.getAddress();
-  const agentKit = await AgentKit.from({
-    walletProvider,
-    actionProviders: [walletActionProvider()],
-  });
-  const llm = new ChatOpenAI({
+  cachedModel = new ChatOpenAI({
     model: "gpt-4o-mini",
     apiKey: workerEnv.OPENAI_API_KEY,
     temperature: 0.1,
   });
-  const tools = await getLangChainTools(agentKit);
 
-  cachedAgent = {
-    walletAddress,
-    agent: createReactAgent({
-      llm,
-      tools: tools as never,
-    }),
-  };
-
-  return cachedAgent;
+  return cachedModel;
 }
 
 function normalizeAnalysis(raw: unknown): ProposalAnalysis {
@@ -90,7 +62,7 @@ export async function generateProposalAnalysis(input: {
   vault: string;
   quote: BaseMainnetQuote;
 }): Promise<ProposalAnalysis> {
-  const { agent } = await initializeAgent();
+  const llm = getAnalysisModel();
 
   const prompt = `You are Cerberus, a production-grade DeFi governance agent.
 
@@ -131,12 +103,8 @@ Return JSON only with this exact shape:
   "sourceRefs": string[]
 }`;
 
-  const response = await agent.invoke({
-    messages: [new HumanMessage(prompt)],
-  });
-
-  const lastMessage = response.messages.at(-1);
-  const content = typeof lastMessage?.content === "string" ? lastMessage.content : JSON.stringify(lastMessage?.content ?? "{}");
+  const response = await llm.invoke([new HumanMessage(prompt)]);
+  const content = typeof response.content === "string" ? response.content : JSON.stringify(response.content ?? "{}");
   const match = content.match(/\{[\s\S]*\}/);
   if (!match) {
     throw new Error("Agent analysis did not return JSON");

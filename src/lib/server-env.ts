@@ -25,12 +25,11 @@ const workerSchema = z.object({
   XMTP_DB_ENCRYPTION_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
   XMTP_DB_PATH: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
-  CDP_API_KEY_ID: z.string().min(1),
-  CDP_API_KEY_SECRET: z.string().min(1),
   NETWORK_ID: z.string().default("base-sepolia"),
   REDIS_URL: z.string().url().optional(),
   UPSTASH_REDIS_URL: z.string().url().optional(),
   BASE_MAINNET_RPC_URL: z.string().url(),
+  CERBERUS_APP_URL: z.string().url().optional(),
 });
 
 export const serverEnv = serverSchema.parse(process.env);

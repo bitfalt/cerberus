@@ -10,6 +10,7 @@ The live architecture is:
 - `Base Sepolia`: final authority for governed funds, withdrawals, recovery, and executions
 - `XMTP`: proposal and approval transport layer
 - `World ID v4`: fresh human verification for governed outflows
+- `World AgentKit`: verifies the worker agent is human-backed before premium quote access
 - `x402`: paid authorization issuance, designed to stay chain-agnostic
 - `Redis`: active workflow coordination, TTLs, locks, and payment sessions
 - `Convex`: World ID verification registry and nullifier protection
@@ -25,6 +26,7 @@ The live architecture is:
 - Redis-backed proposal and payment workflow state
 - x402 payment intent, verification, and settlement flow
 - Real Base Mainnet quote-backed proposal generation with worker-owned opportunity discovery
+- AgentKit-protected premium quote endpoint backed by AgentBook verification and Redis free-trial state
 - XMTP browser inbox for the owner and a persistent Node worker for the agent
 - Vault-first dashboard for creation, bootstrap, funding, proposal review, payment, execution, withdrawal, and recovery
 - Contract deployment script and Hardhat node tests for the vault lifecycle
@@ -116,10 +118,12 @@ That is the highest signal-to-effort deployment setup for this repo.
 3. Set the Cerberus signer private key and Base Sepolia RPC URL
 4. Set World ID and Redis env vars
 5. Set Base Mainnet RPC for quote discovery
-6. Start the XMTP worker with persistent storage
-7. Confirm the worker can fetch live Base Mainnet quotes and publish proposals
-8. Deploy the web app to Vercel
-9. Confirm the worker inbox address matches `NEXT_PUBLIC_XMTP_AGENT_ADDRESS`
+6. Set `CERBERUS_APP_URL` so the worker can call the protected quote endpoint on your deployed app
+7. Register the worker wallet in World AgentBook with `npx @worldcoin/agentkit-cli register <agent-wallet-address>`
+8. Start the XMTP worker with persistent storage
+9. Confirm the worker can fetch live Base Mainnet quotes and publish proposals
+10. Deploy the web app to Vercel
+11. Confirm the worker inbox address matches `NEXT_PUBLIC_XMTP_AGENT_ADDRESS`
 
 ## Verification checklist
 
@@ -132,6 +136,7 @@ That is the highest signal-to-effort deployment setup for this repo.
 - Bootstrap the vault
 - Fund the vault
 - Run a scan and confirm proposals land in Redis and XMTP
+- Confirm the worker can pass the AgentKit challenge on `/api/agent/premium-quote`
 - Confirm the proposal carries Base Mainnet quote metadata and Base Sepolia execution metadata
 - Complete World ID verification
 - Complete x402 payment

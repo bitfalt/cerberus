@@ -10,8 +10,10 @@ import { serializeXMTPMessage } from "../../src/lib/protocol/messages";
 import { generateProposalAnalysis } from "../../src/lib/agentkit/agent";
 import { hashProposal } from "../../src/lib/protocol/hash";
 import { proposalSchema } from "../../src/lib/protocol/schemas";
-import { encodeExecutionCalldata, fetchBaseMainnetUsdcWethQuote } from "../../src/lib/quotes/base-mainnet-uniswap";
+import { encodeExecutionCalldata } from "../../src/lib/quotes/base-mainnet-uniswap";
+import type { BaseMainnetQuote } from "../../src/lib/quotes/base-mainnet-uniswap";
 import { buildOpportunityProposal } from "../../src/lib/proposals/build-opportunity-proposal";
+import { buildAgentkitSignMessage, buildSignedAgentkitHeader } from "../../src/lib/world-agentkit";
 
 function createSigner(): Signer {
   const workerEnv = getWorkerEnv();
@@ -34,6 +36,91 @@ function createSigner(): Signer {
 function getWorkerWalletAddress() {
   const workerEnv = getWorkerEnv();
   return privateKeyToAccount(workerEnv.XMTP_WALLET_KEY as `0x${string}`).address.toLowerCase();
+}
+
+function getAppBaseUrl() {
+  const workerEnv = getWorkerEnv();
+  const url = workerEnv.CERBERUS_APP_URL ?? process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
+  if (!url) {
+    throw new Error("CERBERUS_APP_URL is required for the worker to access the AgentKit-protected quote endpoint.");
+  }
+  return url.replace(/\/$/, "");
+}
+
+async function fetchProtectedQuote() {
+  const signerAccount = privateKeyToAccount(getWorkerEnv().XMTP_WALLET_KEY as `0x${string}`);
+  const resourceUrl = `${getAppBaseUrl()}/api/agent/premium-quote`;
+
+  const initial = await fetch(resourceUrl, {
+    headers: {
+      accept: "application/json",
+    },
+  });
+
+  if (initial.ok) {
+    const payload = (await initial.json()) as { quote: BaseMainnetQuote };
+    return payload.quote;
+  }
+
+  if (initial.status !== 402) {
+    const payload = await initial.json().catch(() => ({ error: `Unexpected quote response status ${initial.status}` }));
+    throw new Error(payload.error ?? `Unexpected quote response status ${initial.status}`);
+  }
+
+  const challenge = (await initial.json()) as {
+    extensions?: {
+      agentkit?: {
+        info: {
+          domain: string;
+          uri: string;
+          version: string;
+          nonce: string;
+          issuedAt: string;
+          expirationTime?: string;
+          notBefore?: string;
+          requestId?: string;
+          resources?: string[];
+          statement?: string;
+        };
+        supportedChains: Array<{ chainId: string; type: string }>;
+      };
+    };
+  };
+
+  const agentkitChallenge = challenge.extensions?.agentkit;
+  if (!agentkitChallenge) {
+    throw new Error("Premium quote endpoint did not return an AgentKit challenge.");
+  }
+
+  const signMessage = buildAgentkitSignMessage({
+    challenge: agentkitChallenge,
+    address: signerAccount.address,
+  });
+  const signature = await signerAccount.signMessage({ message: signMessage });
+  const header = buildSignedAgentkitHeader({
+    challenge: agentkitChallenge,
+    address: signerAccount.address,
+    signature,
+  });
+
+  const authenticated = await fetch(resourceUrl, {
+    headers: {
+      accept: "application/json",
+      agentkit: header,
+    },
+  });
+
+  if (!authenticated.ok) {
+    const payload = await authenticated.json().catch(() => ({ error: `Authenticated quote request failed with status ${authenticated.status}` }));
+    const hint =
+      authenticated.status === 402
+        ? "Ensure the worker wallet is registered in World AgentBook and the worker is signing the challenge on the same XMTP/AgentKit identity."
+        : "";
+    throw new Error([payload.error ?? `Authenticated quote request failed with status ${authenticated.status}`, hint].filter(Boolean).join(" "));
+  }
+
+  const payload = (await authenticated.json()) as { quote: BaseMainnetQuote };
+  return payload.quote;
 }
 
 async function createClient() {
@@ -99,7 +186,7 @@ async function processQueuedScans() {
   await updateScanRequest(scanRequest.scanRequestId, { status: "processing" });
 
   try {
-    const quote = await fetchBaseMainnetUsdcWethQuote();
+    const quote = await fetchProtectedQuote();
     const analysis = await generateProposalAnalysis({
       wallet: scanRequest.wallet,
       vault: scanRequest.vault,
