@@ -1,7 +1,7 @@
 import "server-only";
 
 import { ConvexHttpClient } from "convex/browser";
-import { publicEnv } from "@/lib/env";
+import { publicEnv } from "@/lib/public-env";
 
 let httpClient: ConvexHttpClient | null = null;
 

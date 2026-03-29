@@ -6,7 +6,7 @@ import { HumanMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { DEMO_LIMITS } from "@/lib/protocol/constants";
-import { getWorkerEnv, hasAgentWorkerEnv } from "@/lib/env";
+import { getWorkerEnv, hasAgentWorkerEnv } from "@/lib/server-env";
 import type { BaseMainnetQuote } from "@/lib/quotes/base-mainnet-uniswap";
 
 type ProposalAnalysis = {

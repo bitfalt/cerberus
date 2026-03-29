@@ -12,7 +12,7 @@ import {
 } from "viem";
 import type { Address, Hex } from "viem";
 import { base } from "viem/chains";
-import { baseMainnetRpcUrl } from "@/lib/env";
+import { baseMainnetRpcUrl } from "@/lib/server-env";
 import { OPPORTUNITY_CHAIN, QUOTE_AMOUNT_USDC, SLIPPAGE_BPS, UNISWAP_V3_FEE_TIERS } from "@/lib/protocol/constants";
 
 export const BASE_MAINNET_UNISWAP = {

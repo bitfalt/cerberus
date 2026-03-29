@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { IDKitRequestWidget, orbLegacy, type IDKitResult, type RpContext } from '@worldcoin/idkit';
-import { publicEnv } from '@/lib/env';
+import { publicEnv } from '@/lib/public-env';
 
 type Props = {
   actionType: 'execute' | 'withdraw' | 'recover';

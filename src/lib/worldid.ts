@@ -1,6 +1,6 @@
 import type { IDKitResult } from "@worldcoin/idkit";
 import { signRequest } from "@worldcoin/idkit/signing";
-import { serverEnv } from "@/lib/env";
+import { serverEnv } from "@/lib/server-env";
 import { hashSignal } from "@/lib/protocol/hash";
 import { TTL_MS } from "@/lib/protocol/constants";
 

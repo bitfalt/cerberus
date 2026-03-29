@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { hexToBytes } from 'viem';
 import { useWalletClient } from 'wagmi';
-import { publicEnv } from '@/lib/env';
+import { publicEnv } from '@/lib/public-env';
 
 type BrowserClient = typeof import('@xmtp/browser-sdk').Client;
 type BrowserDm = import('@xmtp/browser-sdk').Dm;

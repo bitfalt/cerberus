@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RainbowKitProvider, getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { baseSepolia } from 'wagmi/chains';
 import { ConvexProvider } from 'convex/react';
-import { publicEnv } from '@/lib/env';
+import { publicEnv } from '@/lib/public-env';
 import { getConvexReactClient } from '@/lib/convex/react-client';
 
 const wagmiConfig = getDefaultConfig({

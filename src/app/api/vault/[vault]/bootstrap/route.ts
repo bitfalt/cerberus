@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { maxUint256 } from "viem";
 import { z } from "zod";
 import { cerberusVaultAbi } from "@/lib/contracts";
-import { publicEnv } from "@/lib/env";
+import { publicEnv } from "@/lib/public-env";
 import { getCerberusWalletClient, getBaseSepoliaPublicClient } from "@/lib/server/wallet";
 
 const bodySchema = z.object({

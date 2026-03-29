@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { erc20Abi, formatEther, formatUnits } from 'viem';
 import { cerberusVaultAbi } from '@/lib/contracts';
-import { publicEnv } from '@/lib/env';
+import { publicEnv } from '@/lib/public-env';
 import { getBaseSepoliaPublicClient } from '@/lib/server/wallet';
 
 export async function GET(_request: Request, context: { params: Promise<{ vault: string }> }) {

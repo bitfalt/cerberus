@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Client, createBackend, type DecodedMessage, type Identifier, type Signer } from "@xmtp/node-sdk";
 import { hexToBytes, toBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { getWorkerEnv } from "../../src/lib/env";
+import { getWorkerEnv } from "../../src/lib/server-env";
 import { log } from "../../src/lib/server/logger";
 import { createProposalRecord, dequeueScanRequest, listAllProposalRecords, updateProposalRecord, updateScanRequest } from "../../src/lib/server/workflow";
 import { serializeXMTPMessage } from "../../src/lib/protocol/messages";

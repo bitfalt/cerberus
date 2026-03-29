@@ -1,5 +1,5 @@
 import { ConvexReactClient } from "convex/react";
-import { publicEnv } from "@/lib/env";
+import { publicEnv } from "@/lib/public-env";
 
 let reactClient: ConvexReactClient | null = null;
 

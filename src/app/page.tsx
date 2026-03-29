@@ -5,7 +5,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, usePublicClient, useReadContract, useSignTypedData, useWalletClient, useWriteContract } from 'wagmi';
 import { formatEther, parseEther } from 'viem';
 import { cerberusVaultAbi, cerberusVaultFactoryAbi } from '@/lib/contracts';
-import { publicEnv } from '@/lib/env';
+import { publicEnv } from '@/lib/public-env';
 import { useCerberusXMTP } from '@/hooks/useCerberusXMTP';
 import { useCerberusX402 } from '@/hooks/useCerberusX402';
 import { WorldIdActionButton } from '@/components/WorldIdActionButton';
