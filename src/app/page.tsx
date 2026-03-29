@@ -66,6 +66,8 @@ export default function Home() {
   const [actionNonce, setActionNonce] = useState<Record<string, string>>({});
   const [recoverySignalHash, setRecoverySignalHash] = useState<string | null>(null);
   const [withdrawSignalHash, setWithdrawSignalHash] = useState<string | null>(null);
+  const [withdrawNonce, setWithdrawNonce] = useState<string>(() => crypto.randomUUID());
+  const [recoveryNonce, setRecoveryNonce] = useState<string>(() => crypto.randomUUID());
 
   const xmtp = useCerberusXMTP();
   const x402 = useCerberusX402();
@@ -343,7 +345,6 @@ export default function Home() {
 
   const withdrawFromVault = async () => {
     if (!address || !activeVault) return;
-    const nonce = crypto.randomUUID();
     if (!withdrawSignalHash) {
       throw new Error('World ID verification is required for withdrawals');
     }
@@ -357,7 +358,7 @@ export default function Home() {
         token: '0x0000000000000000000000000000000000000000',
         to: withdrawRecipient || address,
         amount: parseEther(withdrawAmount).toString(),
-        nonce,
+        nonce: withdrawNonce,
         signalHash: withdrawSignalHash,
       }),
     });
@@ -384,19 +385,20 @@ export default function Home() {
     if (publicClient) {
       await publicClient.waitForTransactionReceipt({ hash: txHash });
     }
+    setWithdrawSignalHash(null);
+    setWithdrawNonce(crypto.randomUUID());
     await refreshVaultStatus();
   };
 
   const requestRecovery = async () => {
     if (!address || !activeVault || !recoveryAddress || !recoverySignalHash) return;
-    const nonce = crypto.randomUUID();
     const response = await fetch(`/api/vault/${activeVault}/recovery-authorize`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         wallet: address,
         recoveryAddress,
-        nonce,
+        nonce: recoveryNonce,
         signalHash: recoverySignalHash,
       }),
     });
@@ -422,6 +424,8 @@ export default function Home() {
       wallet: address,
       timestamp: currentTimestamp(),
     });
+    setRecoverySignalHash(null);
+    setRecoveryNonce(crypto.randomUUID());
   };
 
   return (
@@ -545,7 +549,7 @@ export default function Home() {
                       actionType="withdraw"
                       wallet={address}
                       vault={activeVault}
-                      nonce={crypto.randomUUID()}
+                      nonce={withdrawNonce}
                       onVerified={({ signalHash }) => setWithdrawSignalHash(signalHash)}
                     />
                   ) : null}
@@ -564,7 +568,7 @@ export default function Home() {
                       actionType="recover"
                       wallet={address}
                       vault={activeVault}
-                      nonce={crypto.randomUUID()}
+                      nonce={recoveryNonce}
                       recoveryAddress={recoveryAddress}
                       onVerified={({ signalHash }) => setRecoverySignalHash(signalHash)}
                     />
