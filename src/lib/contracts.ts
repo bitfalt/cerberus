@@ -1,5 +1,156 @@
-import cerberusVaultArtifact from "../../contracts/artifacts/contracts/CerberusVault.sol/CerberusVault.json";
-import cerberusVaultFactoryArtifact from "../../contracts/artifacts/contracts/CerberusVaultFactory.sol/CerberusVaultFactory.json";
+export const cerberusVaultFactoryAbi = [
+  {
+    type: "function",
+    name: "createVault",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "recoveryAddress", type: "address" }],
+    outputs: [{ name: "vaultAddress", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "vaultByOwner",
+    stateMutability: "view",
+    inputs: [{ name: "owner", type: "address" }],
+    outputs: [{ name: "vault", type: "address" }],
+  },
+] as const;
 
-export const cerberusVaultAbi = cerberusVaultArtifact.abi;
-export const cerberusVaultFactoryAbi = cerberusVaultFactoryArtifact.abi;
+export const cerberusVaultAbi = [
+  {
+    type: "function",
+    name: "owner",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "recoveryAddress",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "paused",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "setAllowedToken",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "allowed", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "setAllowedAdapter",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "adapter", type: "address" },
+      { name: "allowed", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "setAllowedRecipient",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "recipient", type: "address" },
+      { name: "allowed", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "setTokenApproval",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "executeAuthorized",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "auth",
+        type: "tuple",
+        components: [
+          { name: "vault", type: "address" },
+          { name: "proposalId", type: "string" },
+          { name: "proposalHash", type: "bytes32" },
+          { name: "adapter", type: "address" },
+          { name: "tokenIn", type: "address" },
+          { name: "tokenOut", type: "address" },
+          { name: "amountIn", type: "uint256" },
+          { name: "minAmountOut", type: "uint256" },
+          { name: "callDataHash", type: "bytes32" },
+          { name: "nonce", type: "uint256" },
+          { name: "validAfter", type: "uint256" },
+          { name: "validUntil", type: "uint256" },
+          { name: "policyHash", type: "bytes32" },
+        ],
+      },
+      { name: "ownerSig", type: "bytes" },
+      { name: "cerberusSig", type: "bytes" },
+      { name: "adapterCalldata", type: "bytes" },
+    ],
+    outputs: [{ name: "result", type: "bytes" }],
+  },
+  {
+    type: "function",
+    name: "withdrawAuthorized",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "auth",
+        type: "tuple",
+        components: [
+          { name: "vault", type: "address" },
+          { name: "token", type: "address" },
+          { name: "to", type: "address" },
+          { name: "amount", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "validAfter", type: "uint256" },
+          { name: "validUntil", type: "uint256" },
+          { name: "policyHash", type: "bytes32" },
+        ],
+      },
+      { name: "ownerSig", type: "bytes" },
+      { name: "cerberusSig", type: "bytes" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "requestRecovery",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "auth",
+        type: "tuple",
+        components: [
+          { name: "vault", type: "address" },
+          { name: "recoveryAddress", type: "address" },
+          { name: "nonce", type: "uint256" },
+          { name: "validAfter", type: "uint256" },
+          { name: "validUntil", type: "uint256" },
+          { name: "policyHash", type: "bytes32" },
+        ],
+      },
+      { name: "cerberusSig", type: "bytes" },
+    ],
+    outputs: [],
+  },
+] as const;
